@@ -2,10 +2,10 @@ const IS_DEV = process.env.APP_VARIANT === 'development'
 
 module.exports = {
     expo: {
-        name: IS_DEV ? 'LEXAmeta-Test (DEV)' : 'ChatTCP-Test',
+        name: IS_DEV ? 'LEXAmeta-Tester (DEV)' : 'ChatTCP-Tester',
         newArchEnabled: true,
-        slug: 'lexameta-test',
-        version: '0.5.1',
+        slug: 'lexameta-tester',
+        version: '0.6.1',
         orientation: 'default',
         icon: './assets/images/icon.png',
         scheme: 'chattcp-test',
@@ -18,8 +18,8 @@ module.exports = {
                 tinted: './assets/images/icon.png',
             },
             supportsTablet: true,
-            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.test' : 'com.LEXAmeta.ChatTCP.test',
-            bundleIdentifier: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.test' : 'com.LEXAmeta.ChatTCP.test',
+            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.tester' : 'com.LEXAmeta.ChatTCP.tester',
+            bundleIdentifier: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.tester' : 'com.LEXAmeta.ChatTCP.tester',
         },
         android: {
             adaptiveIcon: {
@@ -28,7 +28,7 @@ module.exports = {
                 monochromeImage: './assets/images/adaptive-icon-foreground.png',
                 backgroundColor: '#000',
             },
-            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.test' : 'com.LEXAmeta.ChatTCP.test',
+            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.tester' : 'com.LEXAmeta.ChatTCP.tester',
             userInterfaceStyle: 'dark',
             permissions: [
                 'android.permission.FOREGROUND_SERVICE',
