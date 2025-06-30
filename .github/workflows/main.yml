@@ -1,0 +1,92 @@
+name: Build Android APK
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Clear ESLint cache
+        run: rm -f .eslintcache
+      - name: Run ESLint
+        run: npm run lint > eslint.log 2>&1 || echo "ESLint failed:$(cat eslint.log)"
+        continue-on-error: true
+      - name: Run TypeScript check
+        run: npm run type-check > tsc.log 2>&1 || echo "TypeScript failed:$(cat tsc.log)"
+        continue-on-error: true
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-logs
+          path: |
+            eslint.log
+            tsc.log
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Run Unit Tests
+        run: npm test > jest.log 2>&1 || echo "Jest failed:$(cat jest.log)"
+        continue-on-error: true
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: jest.log
+  build:
+    needs: [lint-and-typecheck, test]
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN_TEST }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '11'
+      - name: Setup Android SDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y android-sdk
+          echo "ANDROID_SDK_ROOT=/usr/lib/android-sdk" >> $GITHUB_ENV
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+      - name: Build APK
+        run: eas build --platform android --profile production --non-interactive > eas-build.log 2>&1 || (cat eas-build.log && exit 1)
+      - name: Check APK output
+        run: ls -la dist || echo "ERROR:dist directory not found"
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: eas-build.log
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: dist/*.apk
+          

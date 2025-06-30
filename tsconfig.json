@@ -1,0 +1,42 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "@components/*": ["app/components/*"],
+      "@screens/*": ["app/screens/*"],
+      "@lib/*": ["lib/*"],
+      "@assets/*": ["assets/*"],
+      "@public/*": ["public/*"],
+      "@db": ["db/db"]
+    },
+    "allowJs": true,
+    "jsx": "react-native",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "noEmit": true,
+    "lib": ["ES2015", "ES2021", "ES2023", "DOM", "DOM.Iterable"],
+    "noImplicitAny": false,
+    "types": ["react", "react-native", "node", "jest", "expo"]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "app/_layout.tsx",
+    "app/About.tsx",
+    "app/CharacterEditor.tsx",
+    "app/ColorTest.tsx",
+    "app/ComponentTest.tsx",
+    "app/Embedding.tsx",
+    "app/Logs.tsx",
+    "app/SamplerMenu.tsx",
+    "app/screens/UserEditor/index.tsx"
+  ]
+}
