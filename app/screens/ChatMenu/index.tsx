@@ -1,8 +1,15 @@
-// app/screens/ChatMenu/index.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, Text, TextInput, Button, StyleSheet, ScrollView, 
-  ActivityIndicator, Alert, Platform, SafeAreaView 
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  SafeAreaView,
 } from 'react-native';
 import Drawer from '@components/views/Drawer';
 import HeaderButton from '@components/views/HeaderButton';
@@ -21,7 +28,6 @@ import { TcpClient, sendMockPrompt } from '../../../lib/tcp-client';
 import { Picker } from '@react-native-picker/picker';
 
 const ChatMenu = () => {
-  // Existing state from second component
   const { spacing } = Theme.useTheme();
   const { unloadCharacter } = Characters.useCharacterCard(
     useShallow((state) => ({
@@ -34,7 +40,7 @@ const ChatMenu = () => {
     showChats: state.values?.[Drawer.ID.CHATLIST],
   }));
 
-  // Swarm Chat state from first component
+  // Swarm Chat State
   const [availablePeers, setAvailablePeers] = useState<Peer[]>([]);
   const [selectedPeerIp, setSelectedPeerIp] = useState<string>('');
   const [selectedLoRA, setSelectedLoRA] = useState<string>('');
@@ -46,96 +52,128 @@ const ChatMenu = () => {
   const [chatMode, setChatMode] = useState<'character' | 'swarm'>('character');
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // Effects for Swarm Chat
+  // Swarm Peer Discovery Effect
   useEffect(() => {
+    let isMounted = true;
     const fetchPeers = async () => {
       if (chatMode !== 'swarm') return;
-      
-      setSwarmChatResponse(prev => [...prev, "Discovering peers..."]);
+      setSwarmChatResponse((prev) => [...prev, 'Discovering peers...']);
       try {
         const peers = await discoverPeers();
+        if (!isMounted) return;
         setAvailablePeers(peers);
         if (peers.length > 0) {
-          const initialPeer = peers.sort((a, b) => (a.load || 0) - (b.load || 0))[0];
+          const initialPeer = peers.slice().sort((a, b) => (a.load || 0) - (b.load || 0))[0];
           setSelectedPeerIp(initialPeer.ip);
-          if (initialPeer.loras?.length > 0) {
-            setSelectedLoRA(initialPeer.loras[0]);
-          }
-          setSwarmChatResponse(prev => [...prev, `Discovered ${peers.length} peers.`]);
+          if (initialPeer.loras?.length > 0) setSelectedLoRA(initialPeer.loras[0]);
+          setSwarmChatResponse((prev) => [
+            ...prev,
+            `Discovered ${peers.length} peers.`,
+          ]);
         } else {
-          setSwarmChatResponse(prev => [...prev, "No peers discovered."]);
+          setSwarmChatResponse((prev) => [...prev, 'No peers discovered.']);
         }
       } catch (error: any) {
-        setSwarmChatResponse(prev => [...prev, `Peer discovery error: ${error.message}`]);
-        Alert.alert("Peer Discovery Error", `Failed to discover peers: ${error.message}`);
+        setSwarmChatResponse((prev) => [
+          ...prev,
+          `Peer discovery error: ${error.message}`,
+        ]);
+        Alert.alert('Peer Discovery Error', `Failed to discover peers: ${error.message}`);
       }
     };
-    
+
     fetchPeers();
 
     return () => {
+      isMounted = false;
       tcpClientInstance?.disconnect();
       unloadCharacter();
       unloadChat();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatMode]);
 
+  // Swarm Peer Connect Effect
   useEffect(() => {
+    let isMounted = true;
     const connectClient = async () => {
       if (selectedPeerIp && chatMode === 'swarm') {
         if (tcpClientInstance) {
           tcpClientInstance.disconnect();
         }
-        const peer = availablePeers.find(p => p.ip === selectedPeerIp);
+        const peer = availablePeers.find((p) => p.ip === selectedPeerIp);
         if (peer) {
           setIsConnecting(true);
-          setSwarmChatResponse(prev => [...prev, `Connecting to ${peer.ip}:${peer.port}...`]);
+          setSwarmChatResponse((prev) => [
+            ...prev,
+            `Connecting to ${peer.ip}:${peer.port}...`,
+          ]);
           const client = new TcpClient();
           try {
             await client.connect(peer.ip, peer.port);
+            if (!isMounted) return;
             setTcpClientInstance(client);
-            setSwarmChatResponse(prev => [...prev, `Connected to ${peer.ip}`]);
+            setSwarmChatResponse((prev) => [
+              ...prev,
+              `Connected to ${peer.ip}`,
+            ]);
           } catch (error: any) {
-            setSwarmChatResponse(prev => [...prev, `Connection failed: ${error.message}`]);
-            Alert.alert("Connection Error", `Failed to connect to ${peer.ip}`);
+            setSwarmChatResponse((prev) => [
+              ...prev,
+              `Connection failed: ${error.message}`,
+            ]);
+            Alert.alert('Connection Error', `Failed to connect to ${peer.ip}`);
           } finally {
             setIsConnecting(false);
           }
         }
       }
     };
-    
+
     connectClient();
+
+    return () => {
+      isMounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPeerIp, availablePeers, chatMode]);
 
-  // Swarm Chat handler
+  // Swarm Chat Handler
   const handleSwarmChatSend = async () => {
     if (!swarmChatPrompt.trim()) return;
-
-    const currentPeer = availablePeers.find(p => p.ip === selectedPeerIp);
+    const currentPeer = availablePeers.find((p) => p.ip === selectedPeerIp);
     if (!currentPeer) {
-      setSwarmChatResponse(prev => [...prev, "Error: No peer selected."]);
-      Alert.alert("Send Error", "Please select a peer before sending.");
+      setSwarmChatResponse((prev) => [...prev, 'Error: No peer selected.']);
+      Alert.alert('Send Error', 'Please select a peer before sending.');
       return;
     }
-
     const message = `You: ${swarmChatPrompt}`;
-    setSwarmChatResponse(prev => [...prev, message]);
+    setSwarmChatResponse((prev) => [...prev, message]);
     setSwarmChatPrompt('');
 
     setIsSending(true);
     try {
-      const response = await sendMockPrompt(currentPeer.model, swarmChatPrompt, selectedLoRA || undefined);
-      setSwarmChatResponse(prev => [...prev, `AI (${currentPeer.model} @ ${currentPeer.ip}): ${response}`]);
+      const response = await sendMockPrompt(
+        currentPeer.model,
+        swarmChatPrompt,
+        selectedLoRA || undefined,
+      );
+      setSwarmChatResponse((prev) => [
+        ...prev,
+        `AI (${currentPeer.model} @ ${currentPeer.ip}): ${response}`,
+      ]);
     } catch (error: any) {
-      setSwarmChatResponse(prev => [...prev, `AI Error: ${error.message}`]);
-      Alert.alert("Send Failed", `Could not get response: ${error.message}`);
+      setSwarmChatResponse((prev) => [
+        ...prev,
+        `AI Error: ${error.message}`,
+      ]);
+      Alert.alert('Send Failed', `Could not get response: ${error.message}`);
     } finally {
       setIsSending(false);
     }
   };
 
-  const currentSelectedPeer = availablePeers.find(p => p.ip === selectedPeerIp);
+  const currentSelectedPeer = availablePeers.find((p) => p.ip === selectedPeerIp);
 
   return (
     <Drawer.Gesture
@@ -147,12 +185,22 @@ const ChatMenu = () => {
       <SafeAreaView style={{ flex: 1, flexDirection: 'row' }}>
         <HeaderTitle />
         <HeaderButton
-          headerLeft={() => !showChats && <Drawer.Button drawerID={Drawer.ID.SETTINGS} />}
+          headerLeft={() =>
+            !showChats && <Drawer.Button drawerID={Drawer.ID.SETTINGS} />
+          }
           headerRight={() => (
             <>
               <Button
-                title={chatMode === 'character' ? 'Switch to Swarm' : 'Switch to Character'}
-                onPress={() => setChatMode(prev => prev === 'character' ? 'swarm' : 'character')}
+                title={
+                  chatMode === 'character'
+                    ? 'Switch to Swarm'
+                    : 'Switch to Character'
+                }
+                onPress={() =>
+                  setChatMode((prev) =>
+                    prev === 'character' ? 'swarm' : 'character',
+                  )
+                }
               />
               {!showSettings && (
                 <Drawer.Button drawerID={Drawer.ID.CHATLIST} openIcon="message1" />
@@ -165,13 +213,15 @@ const ChatMenu = () => {
           {chatMode === 'character' ? (
             <>
               {chat && <ChatWindow />}
-              <View style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginVertical: spacing.m,
-                paddingHorizontal: spacing.l,
-              }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginVertical: spacing.m,
+                  paddingHorizontal: spacing.l,
+                }}
+              >
                 <AvatarViewer />
                 <OptionsMenu />
                 {/* Character ChatInput would go here */}
@@ -184,14 +234,36 @@ const ChatMenu = () => {
                 <Text style={styles.swarmTitle}>Swarm AI Chat</Text>
                 <Button
                   title="Refresh Peers"
-                  onPress={() => discoverPeers().then(setAvailablePeers)}
+                  onPress={async () => {
+                    setIsConnecting(true);
+                    setSwarmChatResponse((prev) => [...prev, 'Refreshing peer list...']);
+                    try {
+                      const peers = await discoverPeers();
+                      setAvailablePeers(peers);
+                      setSwarmChatResponse((prev) => [
+                        ...prev,
+                        `Discovered ${peers.length} peers.`,
+                      ]);
+                    } catch (error: any) {
+                      setSwarmChatResponse((prev) => [
+                        ...prev,
+                        `Peer discovery error: ${error.message}`,
+                      ]);
+                      Alert.alert('Peer Discovery Error', `Failed to discover peers: ${error.message}`);
+                    }
+                    setIsConnecting(false);
+                  }}
                   disabled={isConnecting || isSending}
                 />
               </View>
 
               <Text style={styles.label}>Target Peer & Model:</Text>
               {isConnecting ? (
-                <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} />
+                <ActivityIndicator
+                  size="small"
+                  color="#0000ff"
+                  style={styles.loadingIndicator}
+                />
               ) : (
                 <Picker
                   selectedValue={selectedPeerIp}
@@ -200,7 +272,7 @@ const ChatMenu = () => {
                   enabled={!isSending}
                 >
                   {availablePeers.length > 0 ? (
-                    availablePeers.map(peer => (
+                    availablePeers.map((peer) => (
                       <Picker.Item
                         key={peer.ip}
                         label={`${peer.model} (${peer.ip}) Load: ${(peer.load * 100).toFixed(0)}%`}
@@ -223,7 +295,7 @@ const ChatMenu = () => {
                     enabled={!isSending}
                   >
                     <Picker.Item label="No LoRA (Base Model)" value="" />
-                    {currentSelectedPeer.loras.map(lora => (
+                    {currentSelectedPeer.loras.map((lora) => (
                       <Picker.Item key={lora} label={lora} value={lora} />
                     ))}
                   </Picker>
@@ -232,7 +304,9 @@ const ChatMenu = () => {
 
               <ScrollView style={styles.chatOutput} ref={scrollViewRef}>
                 {swarmChatResponse.map((msg, index) => (
-                  <Text key={index} style={styles.chatMessage}>{msg}</Text>
+                  <Text key={index} style={styles.chatMessage}>
+                    {msg}
+                  </Text>
                 ))}
               </ScrollView>
 
@@ -246,7 +320,7 @@ const ChatMenu = () => {
                   editable={!isSending && !isConnecting && !!selectedPeerIp}
                 />
                 <Button
-                  title={isSending ? "Sending..." : "Send to Swarm"}
+                  title={isSending ? 'Sending...' : 'Send to Swarm'}
                   onPress={handleSwarmChatSend}
                   disabled={isSending || isConnecting || !selectedPeerIp || !swarmChatPrompt.trim()}
                 />
