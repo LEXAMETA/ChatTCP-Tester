@@ -1,11 +1,11 @@
-// lib/tcp-client.ts
 import TcpSocket from 'react-native-tcp-socket';
 import * as pako from 'pako';
 import { Buffer } from 'buffer';
 
 // Polyfill for Buffer if not globally available
 if (typeof global.Buffer === 'undefined') {
-    global.Buffer = Buffer;
+  // @ts-ignore
+  global.Buffer = Buffer;
 }
 
 export interface Request {
@@ -24,7 +24,7 @@ export interface Response {
 export class TcpClient {
   private socket: TcpSocket.Socket | null = null;
   private receivedDataBuffer: Buffer = Buffer.alloc(0);
-  private responseQueue: { resolve: (res: Response) => void, reject: (err: Error) => void }[] = [];
+  private responseQueue: { resolve: (res: Response) => void; reject: (err: Error) => void }[] = [];
 
   async connect(host: string, port: number): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -43,7 +43,7 @@ export class TcpClient {
 
       this.socket.on('close', () => {
         console.log('[TcpClient] Socket closed.');
-        this.responseQueue.forEach(({ reject }) => reject(new Error("Socket closed unexpectedly.")));
+        this.responseQueue.forEach(({ reject }) => reject(new Error('Socket closed unexpectedly.')));
         this.responseQueue = [];
         this.socket = null;
       });
@@ -76,10 +76,10 @@ export class TcpClient {
 
   async send(request: Request): Promise<Response> {
     if (!this.socket) {
-      throw new Error("[TcpClient] Not connected. Call connect() first.");
+      throw new Error('[TcpClient] Not connected. Call connect() first.');
     }
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       this.responseQueue.push({ resolve, reject });
       try {
         const dataString = JSON.stringify(request);
@@ -87,18 +87,23 @@ export class TcpClient {
         console.log(`[TcpClient] Sending ${dataString.length} bytes (compressed to ${compressedData.length} bytes)`);
         const lengthBuffer = Buffer.alloc(4);
         lengthBuffer.writeUInt32BE(compressedData.length, 0);
-        this.socket.write(Buffer.concat([lengthBuffer, compressedData]));
+        this.socket!.write(Buffer.concat([lengthBuffer, compressedData]));
+
+        // Timeout for response
         const timeout = setTimeout(() => {
           const index = this.responseQueue.findIndex(p => p.resolve === resolve);
           if (index !== -1) {
-              this.responseQueue.splice(index, 1);
-              reject(new Error("Response timeout."));
+            this.responseQueue.splice(index, 1);
+            reject(new Error('Response timeout.'));
           }
         }, 15000);
+
+        // Optionally clear the timeout after response is received
+        // This would require passing timeout to processReceivedData, or managing differently
       } catch (error: any) {
         const index = this.responseQueue.findIndex(p => p.resolve === resolve);
         if (index !== -1) {
-            this.responseQueue.splice(index, 1);
+          this.responseQueue.splice(index, 1);
         }
         reject(new Error(`Failed to send request: ${error.message}`));
       }
@@ -110,7 +115,7 @@ export class TcpClient {
       this.socket.end();
       this.socket = null;
       this.receivedDataBuffer = Buffer.alloc(0);
-      this.responseQueue.forEach(({ reject }) => reject(new Error("Client disconnected.")));
+      this.responseQueue.forEach(({ reject }) => reject(new Error('Client disconnected.')));
       this.responseQueue = [];
     }
   }
@@ -127,7 +132,9 @@ export async function sendMockPrompt(model: string, prompt: string, lora?: strin
       const mockResponse: Response = { status: 'success', output: mockOutput };
       const mockResponseString = JSON.stringify(mockResponse);
       const mockCompressedResponse = pako.deflate(mockResponseString);
-      console.log(`[Mock Recv] Mock response size: ${mockResponseString.length} bytes, Compressed: ${mockCompressedResponse.length} bytes`);
+      console.log(
+        `[Mock Recv] Mock response size: ${mockResponseString.length} bytes, Compressed: ${mockCompressedResponse.length} bytes`
+      );
       resolve(mockOutput);
     }, 800);
   });
