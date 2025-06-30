@@ -97,7 +97,7 @@ module.exports = {
                 origin: false,
             },
             eas: {
-                projectId: 'ce93f56a-bd21-4337-a364-f93f2356441d',
+                projectId: '',
             },
         } // No comma here, as 'extra' is the last property of 'expo'
     }, // This closes the 'expo' object
