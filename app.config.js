@@ -93,12 +93,12 @@ module.exports = {
         },
         // --- The 'extra' block HAS BEEN MOVED HERE ---
         extra: {
-            router: {
-                origin: false,
-            },
-            eas: {
-                projectId: 'placeholder',
-            },
+    router: {
+        origin: false,
+    },
+    eas: {
+        // Keep 'eas: {}' empty or remove 'eas' entirely if no other 'eas' properties are there
+    },
         } // No comma here, as 'extra' is the last property of 'expo'
     }, // This closes the 'expo' object
 }; // This closes the 'module.exports' object
