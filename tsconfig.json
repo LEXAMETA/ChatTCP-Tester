@@ -1,26 +1,45 @@
 {
     "extends": "expo/tsconfig.base",
     "compilerOptions": {
-        "strict": false,
+        "strict": true,                         // Recommended: enables strict type-checking options
+        "allowUnreachableCode": false,          // Enforced by strict: true, good to keep explicit
+        "allowUnusedLabels": false,             // Enforced by strict: true, good to keep explicit
+        "forceConsistentCasingInFileNames": true, // Recommended for cross-platform compatibility
+        "noFallthroughCasesInSwitch": true,     // Helps prevent common bugs in switch statements
+        "noImplicitReturns": true,              // Ensures all code paths return a value
+        "noImplicitThis": true,                 // Part of strict: true
+        "noImplicitAny": true,                  // Part of strict: true
+        "noUncheckedIndexedAccess": true,       // Helps prevent undefined errors for array/object access
+        "noUnusedLocals": false,                // Good for catching unused variables
+        "noUnusedParameters": false,            // Good for catching unused function parameters
+
         "baseUrl": ".",
         "paths": {
+            "@lib/*": ["lib/*"],
+            "@storage/*": ["lib/storage/*"],     // From ChatterUI-Latest
+            "@app/*": ["app/*"],                 // From ChatterUI-Latest (useful general app alias)
+            "@assets/*": ["assets/*"],
             "@components/*": ["app/components/*"],
             "@screens/*": ["app/screens/*"],
-            "@lib/*": ["lib/*"],
-            "@assets/*": ["assets/*"],
+            "@constants/*": ["constants/*"],     // From ChatterUI-Latest
+            "db/*": ["db/*"],                    // From ChatterUI-Latest (for the whole db folder)
             "@public/*": ["public/*"],
-            "@db": ["db/db"]
+            "@db": ["db/db"]                     // Specific alias for db/db file
         },
+
         "allowJs": true,
         "jsx": "react-native",
         "esModuleInterop": true,
         "skipLibCheck": true,
         "moduleResolution": "node",
-        "allowSyntheticDefaultImports": true,
-        "noEmit": true,
-        "lib": ["ES2015", "ES2021", "ES2023", "DOM", "DOM.Iterable"],
-        "noImplicitAny": false,
-        "types": ["react", "react-native", "node", "jest", "expo"]
+        "allowSyntheticDefaultImports": true,   // From ChatTCP-Tester, useful for module imports
+        "noEmit": true,                         // From ChatTCP-Tester, standard for Expo/RN
+        "lib": ["esnext", "dom", "DOM.Iterable"], // Combined and modern libs
+        "target": "esnext",                     // From ChatterUI-Latest, modern JS target
+        "module": "esnext",                     // From ChatterUI-Latest, modern module system
+        "resolveJsonModule": true,              // From ChatterUI-Latest, allows JSON imports
+        "isolatedModules": true,                // From ChatterUI-Latest, improves build performance
+        "types": ["react", "react-native", "node", "jest", "expo"] // From ChatTCP-Tester, explicitly defines global types
     },
     "include": [
         "**/*.ts",
@@ -29,14 +48,15 @@
         "**/*.jsx",
         ".expo/types/**/*.ts",
         "expo-env.d.ts",
+        "app.d.ts",                         // From ChatterUI-Latest
         "app/_layout.tsx",
-        "app/About.tsx",
-        "app/CharacterEditor.tsx",
-        "app/ColorTest.tsx",
-        "app/ComponentTest.tsx",
-        "app/Embedding.tsx",
-        "app/Logs.tsx",
-        "app/SamplerMenu.tsx",
-        "app/screens/UserEditor/index.tsx"
-    ]
+        "app/src/types/**/*.d.ts",          // From ChatterUI-Latest
+        "app/**/*.ts",                      // Broader glob to cover all app-related TS files
+        "app/**/*.tsx",                     // Broader glob to cover all app-related TSX files
+        "app/**/*.js",                      // Broader glob to cover all app-related JS files
+        "app/**/*.jsx"                      // Broader glob to cover all app-related JSX files
+        // The individual files like "app/About.tsx", "app/CharacterEditor.tsx", etc.,
+        // are now covered by the "app/**/*" globs above, so they don't need to be listed explicitly.
+    ],
+    "exclude": ["node_modules"]
 }
