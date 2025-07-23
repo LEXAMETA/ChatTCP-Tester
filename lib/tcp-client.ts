@@ -6,6 +6,7 @@ import TcpSocket from 'react-native-tcp-socket'
 // Polyfill for Buffer if not globally available
 if (typeof global.Buffer === 'undefined') {
     global.Buffer = Buffer
+
 }
 
 export interface Request {
@@ -22,6 +23,7 @@ export interface Response {
 }
 
 export class TcpClient {
+
     private socket: TcpSocket.Socket | null = null
     private receivedDataBuffer: Buffer = Buffer.alloc(0)
     private responseQueue: { resolve: (res: Response) => void; reject: (err: Error) => void }[] = []
@@ -42,6 +44,7 @@ export class TcpClient {
                 reject(err)
                 this.disconnect()
             })
+
 
             this.socket.on('close', () => {
                 console.log('[TcpClient] Socket closed.')
@@ -76,12 +79,16 @@ export class TcpClient {
                 break
             }
         }
+
     }
 
     async send(request: Request): Promise<Response> {
         if (!this.socket) {
             throw new Error('[TcpClient] Not connected. Call connect() first.')
+
+
         }
+
 
         return new Promise(async (resolve, reject) => {
             this.responseQueue.push({ resolve, reject })
@@ -119,6 +126,8 @@ export class TcpClient {
             this.responseQueue.forEach(({ reject }) => reject(new Error('Client disconnected.')))
             this.responseQueue = []
         }
+
+
     }
 }
 
@@ -145,4 +154,5 @@ export async function sendMockPrompt(
             resolve(mockOutput)
         }, 800)
     })
+
 }

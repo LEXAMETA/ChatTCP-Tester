@@ -19,6 +19,7 @@ module.exports = {
             },
             supportsTablet: true,
             package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.tester' : 'com.LEXAmeta.ChatTCP.tester',
+
             bundleIdentifier: IS_DEV
                 ? 'com.LEXAmeta.ChatTCPDev.tester'
                 : 'com.LEXAmeta.ChatTCP.tester',
@@ -95,6 +96,7 @@ module.exports = {
         },
         // --- The 'extra' block HAS BEEN MOVED HERE ---
         extra: {
+
             router: {
                 origin: false,
             },
@@ -103,5 +105,6 @@ module.exports = {
                 projectId: '3f169a70-b4b9-4f40-b267-bb2f1f704edb',
             },
         }, // No comma here, as 'extra' is the last property of 'expo'
+
     }, // This closes the 'expo' object
 } // This closes the 'module.exports' object
