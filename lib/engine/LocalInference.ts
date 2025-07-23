@@ -239,7 +239,7 @@ const runLocalCompletion = async (payload: Awaited<ReturnType<typeof buildLocalP
         const regenCache = Chats.useChatState.getState().getRegenCache()
         Chats.useChatState
             .getState()
-            .setBuffer({ data: (regenCache + text).replaceAll(replace, ''), timings: timings })
+            .setBuffer({ data: (regenCache + text).replaceAll(replace, ''), timings })
         if (mmkv.getBoolean(AppSettings.PrintContext)) Logger.info(`Completion Output:\n${text}`)
         stopGenerating()
     }

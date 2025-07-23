@@ -100,7 +100,7 @@ const PopupMenu: React.FC<PopupMenuProps> = ({
             onClose={() => setShowMenu(false)}
             renderer={Popover}
             rendererProps={{
-                placement: placement,
+                placement,
                 anchorStyle: styles.anchor,
                 openAnimationDuration: 150,
                 closeAnimationDuration: 0,

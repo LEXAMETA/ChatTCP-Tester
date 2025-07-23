@@ -136,7 +136,7 @@ const readableStreamResponse = async (
     })
 
     sse.start({
-        endpoint: endpoint,
+        endpoint,
         body: payload,
         method: 'POST',
         headers: {

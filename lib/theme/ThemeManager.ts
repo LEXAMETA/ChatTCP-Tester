@@ -28,7 +28,7 @@ export namespace Theme {
                 color: DefaultColorSchemes.lavenderDark,
                 setColor: (color) => {
                     setBackgroundColorAsync(color.neutral._100)
-                    set((state) => ({ ...state, color: color }))
+                    set((state) => ({ ...state, color }))
                 },
                 customColors: [],
                 addCustomColor: (colorScheme: ThemeColor) => {

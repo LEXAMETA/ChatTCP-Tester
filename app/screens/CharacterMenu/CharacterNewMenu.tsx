@@ -1,16 +1,16 @@
-import PopupMenu from '@components/views/PopupMenu';
-import TextBoxModal from '@components/views/TextBoxModal';
-import { Characters } from '@lib/state/Characters';
-import { Logger } from '@lib/state/Logger';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { View } from 'react-native';
-import { useShallow } from 'zustand/react/shallow';
+import PopupMenu from '@components/views/PopupMenu'
+import TextBoxModal from '@components/views/TextBoxModal'
+import { Characters } from '@lib/state/Characters'
+import { Logger } from '@lib/state/Logger'
+import { useRouter } from 'expo-router'
+import { useState } from 'react'
+import { View } from 'react-native'
+import { useShallow } from 'zustand/react/shallow'
 
 type CharacterNewMenuProps = {
-    nowLoading: boolean;
-    setNowLoading: (b: boolean) => void;
-};
+    nowLoading: boolean
+    setNowLoading: (b: boolean) => void
+}
 
 const CharacterNewMenu: React.FC<CharacterNewMenuProps> = ({ nowLoading, setNowLoading }) => {
     const { setCurrentCard } = Characters.useCharacterCard(
@@ -18,29 +18,29 @@ const CharacterNewMenu: React.FC<CharacterNewMenuProps> = ({ nowLoading, setNowL
             setCurrentCard: state.setCard,
             id: state.id,
         }))
-    );
+    )
 
-    const router = useRouter();
-    const [showNewChar, setShowNewChar] = useState(false);
-    const [showDownload, setShowDownload] = useState(false);
+    const router = useRouter()
+    const [showNewChar, setShowNewChar] = useState(false)
+    const [showDownload, setShowDownload] = useState(false)
 
     const handleCreateCharacter = async (text: string) => {
         if (!text) {
-            Logger.errorToast('Name Cannot Be Empty!');
-            return;
+            Logger.errorToast('Name Cannot Be Empty!')
+            return
         }
         try {
-            const id = await Characters.db.mutate.createCard(text);
-            if (nowLoading) return;
-            setNowLoading(true);
-            await setCurrentCard(id);
-            setNowLoading(false);
-            router.push('/CharacterEditor');
+            const id = await Characters.db.mutate.createCard(text)
+            if (nowLoading) return
+            setNowLoading(true)
+            await setCurrentCard(id)
+            setNowLoading(false)
+            router.push('/CharacterEditor')
         } catch (err) {
-            Logger.errorToast('Failed to create character.');
-            setNowLoading(false);
+            Logger.errorToast('Failed to create character.')
+            setNowLoading(false)
         }
-    };
+    }
 
     return (
         <View>
@@ -64,24 +64,24 @@ const CharacterNewMenu: React.FC<CharacterNewMenuProps> = ({ nowLoading, setNowL
                     {
                         label: 'Download',
                         onPress: (menu) => {
-                            menu.current?.close();
-                            setShowDownload(true);
+                            menu.current?.close()
+                            setShowDownload(true)
                         },
                         icon: 'clouddownload',
                     },
                     {
                         label: 'Import From File',
                         onPress: (menu) => {
-                            Characters.importCharacter();
-                            menu.current?.close();
+                            Characters.importCharacter()
+                            menu.current?.close()
                         },
                         icon: 'upload',
                     },
                     {
                         label: 'Create Character',
                         onPress: (menu) => {
-                            setShowNewChar(true);
-                            menu.current?.close();
+                            setShowNewChar(true)
+                            menu.current?.close()
                         },
                         icon: 'edit',
                     },
@@ -89,7 +89,7 @@ const CharacterNewMenu: React.FC<CharacterNewMenuProps> = ({ nowLoading, setNowL
                 placement="bottom"
             />
         </View>
-    );
-};
+    )
+}
 
-export default CharacterNewMenu;
+export default CharacterNewMenu

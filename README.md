@@ -32,12 +32,12 @@ Personalize Yourself
 
 ## Features:
 
--   Run LLMs on-device in Local Mode
--   Connect to various APIs in Remote Mode
--   Chat with characters. (Supports the Character Card v2 specification.)
--   Create and manage multiple chats per character.
--   Customize Sampler fields and Instruct formatting
--   Integrates with your device’s text-to-speech (TTS) engine
+- Run LLMs on-device in Local Mode
+- Connect to various APIs in Remote Mode
+- Chat with characters. (Supports the Character Card v2 specification.)
+- Create and manage multiple chats per character.
+- Customize Sampler fields and Instruct formatting
+- Integrates with your device’s text-to-speech (TTS) engine
 
 <br/>
 
@@ -53,8 +53,8 @@ ChatterUI uses a [llama.cpp](https://github.com/ggerganov/llama.cpp) under the h
 
 To use on-device inferencing, first enable Local Mode, then go to Models > Import Model / Use External Model and choose a gguf model that can fit on your device's memory. The importing functions are as follows:
 
--   Import Model: Copies the model file into ChatterUI, potentially speeding up startup time.
--   Use External Model: Uses a model from your device storage directly, removing the need to copy large files into ChatterUI but with a slight delay in load times.
+- Import Model: Copies the model file into ChatterUI, potentially speeding up startup time.
+- Use External Model: Uses a model from your device storage directly, removing the need to copy large files into ChatterUI but with a slight delay in load times.
 
 After that, you can load the model and begin chatting!
 
@@ -66,23 +66,23 @@ Remote Mode allows you to connect to a few common APIs from both commercial and 
 
 ### Open Source Backends:
 
--   koboldcpp
--   text-generation-webui
--   Ollama
+- koboldcpp
+- text-generation-webui
+- Ollama
 
 ### Dedicated API:
 
--   OpenAI
--   Claude _(with ability to use a proxy)_
--   Cohere
--   Open Router
--   Mancer
--   AI Horde
+- OpenAI
+- Claude _(with ability to use a proxy)_
+- Cohere
+- Open Router
+- Mancer
+- AI Horde
 
 ### Generic backends:
 
--   Generic Text Completions
--   Generic Chat Completions
+- Generic Text Completions
+- Generic Chat Completions
 
 _These should be compliant with any Text Completion/Chat Completion backends such as Groq or Infermatic._
 
@@ -98,15 +98,15 @@ Read more about it [here!](https://github.com/Vali-98/ChatterUI/discussions/126)
 
 To run a development build, follow these simple steps:
 
--   Install any Java 17/21 SDK of your choosing
--   Install `android-sdk` via `Android Studio`
--   Clone the repo:
+- Install any Java 17/21 SDK of your choosing
+- Install `android-sdk` via `Android Studio`
+- Clone the repo:
 
 ```
 git clone https://github.com/Vali-98/ChatterUI.git
 ```
 
--   Install dependencies via npm and run via Expo:
+- Install dependencies via npm and run via Expo:
 
 ```
 npm install
@@ -133,6 +133,5 @@ Currently in development
 
 ## Acknowledgement
 
--   [llama.cpp](https://github.com/ggerganov/llama.cpp) - the underlying engine to run LLMs
--   [llama.rn](https://github.com/mybigday/llama.rn) - the original react-native llama.cpp adapter
-
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) - the underlying engine to run LLMs
+- [llama.rn](https://github.com/mybigday/llama.rn) - the original react-native llama.cpp adapter

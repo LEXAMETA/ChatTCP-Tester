@@ -154,7 +154,7 @@ export namespace SamplersManager {
             const data = await readAsStringAsync(result.assets[0].uri, {
                 encoding: EncodingType.UTF8,
             })
-            return { data: JSON.parse(data), name: name }
+            return { data: JSON.parse(data), name }
         } catch (e) {
             Logger.errorToast(`Failed to import: ${e}`)
         }

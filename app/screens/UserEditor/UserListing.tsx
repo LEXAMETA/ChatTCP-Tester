@@ -1,38 +1,38 @@
-import Alert from '@components/views/Alert';
-import Avatar from '@components/views/Avatar';
-import Drawer from '@components/views/Drawer';
-import PopupMenu from '@components/views/PopupMenu';
-import { Characters } from '@lib/state/Characters';
-import { Theme } from '@lib/theme/ThemeManager';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Menu } from 'react-native-popup-menu';
+import Alert from '@components/views/Alert'
+import Avatar from '@components/views/Avatar'
+import Drawer from '@components/views/Drawer'
+import PopupMenu from '@components/views/PopupMenu'
+import { Characters } from '@lib/state/Characters'
+import { Theme } from '@lib/theme/ThemeManager'
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Menu } from 'react-native-popup-menu'
 
-type CharacterData = Awaited<ReturnType<typeof Characters.db.query.cardListQuery>>[0];
+type CharacterData = Awaited<ReturnType<typeof Characters.db.query.cardListQuery>>[0]
 
 type CharacterListingProps = {
-    user: CharacterData;
-};
+    user: CharacterData
+}
 
-const DAY_MS = 86400000;
+const DAY_MS = 86400000
 const getTimeStamp = (oldtime: number) => {
-    const now = Date.now();
-    const delta = now - oldtime;
-    if (delta < now % DAY_MS) return new Date(oldtime).toLocaleTimeString();
-    if (delta < (now % DAY_MS) + DAY_MS) return 'Yesterday';
-    return new Date(oldtime).toLocaleDateString();
-};
+    const now = Date.now()
+    const delta = now - oldtime
+    if (delta < now % DAY_MS) return new Date(oldtime).toLocaleTimeString()
+    if (delta < (now % DAY_MS) + DAY_MS) return 'Yesterday'
+    return new Date(oldtime).toLocaleDateString()
+}
 
 const UserListing: React.FC<CharacterListingProps> = ({ user }) => {
-    const styles = useStyles();
-    const { spacing } = Theme.useTheme();
+    const styles = useStyles()
+    const { spacing } = Theme.useTheme()
     const { setShowDrawer } = Drawer.useDrawerState((state) => ({
         setShowDrawer: (b: boolean) => state.setShow(Drawer.ID.USERLIST, b),
-    }));
+    }))
 
     const { userId, setCard } = Characters.useUserCard((state) => ({
         userId: state.id,
         setCard: state.setCard,
-    }));
+    }))
 
     // Handles deleting a user card and fallback to default card if last deleted
     const handleDeleteCard = async (menuRef: React.MutableRefObject<Menu | null>) => {
@@ -44,24 +44,24 @@ const UserListing: React.FC<CharacterListingProps> = ({ user }) => {
                 {
                     label: 'Delete User',
                     onPress: async () => {
-                        await Characters.db.mutate.deleteCard(user.id);
+                        await Characters.db.mutate.deleteCard(user.id)
 
                         // Refresh card list and assign a new active card if needed
-                        const list = await Characters.db.query.cardList('user');
+                        const list = await Characters.db.query.cardList('user')
                         if (list.length === 0) {
-                            const defaultName = 'User';
-                            const id = await Characters.db.mutate.createCard(defaultName, 'user');
-                            await setCard(id);
-                            return;
+                            const defaultName = 'User'
+                            const id = await Characters.db.mutate.createCard(defaultName, 'user')
+                            await setCard(id)
+                            return
                         }
-                        if (userId && list.some((item) => item.id === userId)) return;
-                        await setCard(list[0].id);
+                        if (userId && list.some((item) => item.id === userId)) return
+                        await setCard(list[0].id)
                     },
                     type: 'warning',
                 },
             ],
-        });
-    };
+        })
+    }
 
     // Handles cloning a user card using the mutate.duplicateCard method
     const handleCloneCard = (menuRef: React.MutableRefObject<Menu | null>) => {
@@ -73,30 +73,26 @@ const UserListing: React.FC<CharacterListingProps> = ({ user }) => {
                 {
                     label: 'Clone User',
                     onPress: async () => {
-                        menuRef.current?.close();
+                        menuRef.current?.close()
                         // Use duplicateCard from mutate namespace (import as needed if aliasing)
-                        await Characters.db.mutate.duplicateCard(user.id);
+                        await Characters.db.mutate.duplicateCard(user.id)
                     },
                 },
             ],
-        });
-    };
+        })
+    }
 
     return (
         <View
             style={
-                user.id === userId
-                    ? styles.longButtonSelectedContainer
-                    : styles.longButtonContainer
-            }
-        >
+                user.id === userId ? styles.longButtonSelectedContainer : styles.longButtonContainer
+            }>
             <TouchableOpacity
                 style={styles.longButton}
                 onPress={async () => {
-                    await setCard(Number(user.id));
-                    setShowDrawer(false);
-                }}
-            >
+                    await setCard(Number(user.id))
+                    setShowDrawer(false)
+                }}>
                 <View style={{ flexDirection: 'row', flex: 1 }}>
                     <Avatar
                         targetImage={Characters.getImageDir(user.image_id)}
@@ -131,13 +127,13 @@ const UserListing: React.FC<CharacterListingProps> = ({ user }) => {
                 />
             </TouchableOpacity>
         </View>
-    );
-};
+    )
+}
 
-export default UserListing;
+export default UserListing
 
 const useStyles = () => {
-    const { color, spacing, borderWidth, borderRadius, fontSize } = Theme.useTheme();
+    const { color, spacing, borderWidth, borderRadius, fontSize } = Theme.useTheme()
 
     return StyleSheet.create({
         longButton: {
@@ -189,5 +185,5 @@ const useStyles = () => {
             fontSize: fontSize.s,
             color: color.text._400,
         },
-    });
-};
+    })
+}

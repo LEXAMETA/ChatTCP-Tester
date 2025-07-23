@@ -8,10 +8,10 @@ import { FlatList, Pressable, Text, View } from 'react-native'
 import APIValueItem from './APIValueItem'
 
 const APIManager = () => {
-  const { apiValues } = APIState.useAPIState((state) => ({
-    apiValues: state.values,
-  }));
-    
+    const { apiValues } = APIState.useAPIState((state) => ({
+        apiValues: state.values,
+    }))
+
     const { color, spacing } = Theme.useTheme()
 
     const router = useRouter()

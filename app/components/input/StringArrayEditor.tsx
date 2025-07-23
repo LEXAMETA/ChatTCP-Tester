@@ -51,7 +51,12 @@ const StringArrayEditor: React.FC<StringArrayEditorProps> = ({
     const handleChange = (text: string) => {
         setNewData(text)
         const cleaned = text.replaceAll(',', ';')
-        setValue(cleaned.split(';').map((item) => item.trim()).filter(Boolean))
+        setValue(
+            cleaned
+                .split(';')
+                .map((item) => item.trim())
+                .filter(Boolean)
+        )
     }
 
     const handleSplice = (index: number) => {

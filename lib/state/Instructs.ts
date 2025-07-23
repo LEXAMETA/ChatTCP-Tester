@@ -197,7 +197,7 @@ export namespace Instructs {
                 tokenCache: undefined,
                 load: async (id: number) => {
                     const data = await db.query.instruct(id)
-                    set((state) => ({ ...state, data: data, tokenCache: undefined }))
+                    set((state) => ({ ...state, data, tokenCache: undefined }))
                 },
                 setData: (instruct: InstructType) => {
                     set((state) => ({ ...state, data: instruct, tokenCache: undefined }))
@@ -209,8 +209,8 @@ export namespace Instructs {
                     const instruct = get().replacedMacros()
                     if (!instruct)
                         return {
-                            charName: charName,
-                            userName: userName,
+                            charName,
+                            userName,
                             system_prompt_length: 0,
                             system_prefix_length: 0,
                             system_suffix_length: 0,
@@ -224,8 +224,8 @@ export namespace Instructs {
                     const getTokenCount = Tokenizer.getTokenizer()
 
                     const newCache: InstructTokenCache = {
-                        charName: charName,
-                        userName: userName,
+                        charName,
+                        userName,
                         system_prompt_length: getTokenCount(instruct.system_prompt),
                         system_prefix_length: getTokenCount(instruct.system_prefix),
                         system_suffix_length: getTokenCount(instruct.system_suffix),

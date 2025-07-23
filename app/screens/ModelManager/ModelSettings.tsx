@@ -1,57 +1,57 @@
-import ThemedButton from '@components/buttons/ThemedButton';
-import ThemedSlider from '@components/input/ThemedSlider';
-import ThemedSwitch from '@components/input/ThemedSwitch';
-import SectionTitle from '@components/text/SectionTitle';
-import Alert from '@components/views/Alert';
-import { AppSettings } from '@lib/constants/GlobalValues';
-import { Llama } from '@lib/engine/Local/LlamaLocal';
-import { KV } from '@lib/engine/Local/Model';
-import { Logger } from '@lib/state/Logger';
-import { readableFileSize } from '@lib/utils/File';
-import { useFocusEffect } from 'expo-router';
-import React, { useEffect, useState, useCallback } from 'react';
-import { BackHandler, Platform, View } from 'react-native';
-import { useMMKVBoolean } from 'react-native-mmkv';
-import Animated, { Easing, SlideInRight, SlideOutRight } from 'react-native-reanimated';
+import ThemedButton from '@components/buttons/ThemedButton'
+import ThemedSlider from '@components/input/ThemedSlider'
+import ThemedSwitch from '@components/input/ThemedSwitch'
+import SectionTitle from '@components/text/SectionTitle'
+import Alert from '@components/views/Alert'
+import { AppSettings } from '@lib/constants/GlobalValues'
+import { Llama } from '@lib/engine/Local/LlamaLocal'
+import { KV } from '@lib/engine/Local/Model'
+import { Logger } from '@lib/state/Logger'
+import { readableFileSize } from '@lib/utils/File'
+import { useFocusEffect } from 'expo-router'
+import React, { useEffect, useState, useCallback } from 'react'
+import { BackHandler, Platform, View } from 'react-native'
+import { useMMKVBoolean } from 'react-native-mmkv'
+import Animated, { Easing, SlideInRight, SlideOutRight } from 'react-native-reanimated'
 
 type ModelSettingsProp = {
-    modelImporting: boolean;
-    modelLoading: boolean;
-    exit: () => void;
-};
+    modelImporting: boolean
+    modelLoading: boolean
+    exit: () => void
+}
 
 const ModelSettings: React.FC<ModelSettingsProp> = ({ modelImporting, modelLoading, exit }) => {
     const { config, setConfig } = Llama.useEngineData((state) => ({
         config: state.config,
         setConfig: state.setConfiguration,
-    }));
+    }))
 
-    const [saveKV, setSaveKV] = useMMKVBoolean(AppSettings.SaveLocalKV);
-    const [autoloadLocal, setAutoloadLocal] = useMMKVBoolean(AppSettings.AutoLoadLocal);
-    const [showModelInChat, setShowModelInChat] = useMMKVBoolean(AppSettings.ShowModelInChat);
+    const [saveKV, setSaveKV] = useMMKVBoolean(AppSettings.SaveLocalKV)
+    const [autoloadLocal, setAutoloadLocal] = useMMKVBoolean(AppSettings.AutoLoadLocal)
+    const [showModelInChat, setShowModelInChat] = useMMKVBoolean(AppSettings.ShowModelInChat)
 
-    const [kvSize, setKVSize] = useState(0);
+    const [kvSize, setKVSize] = useState(0)
 
     const getKVSize = useCallback(async () => {
-        const size = await KV.getKVSize();
-        setKVSize(size);
-    }, []);
+        const size = await KV.getKVSize()
+        setKVSize(size)
+    }, [])
 
     useEffect(() => {
-        getKVSize();
-    }, [getKVSize]);
+        getKVSize()
+    }, [getKVSize])
 
     const backAction = useCallback(() => {
-        exit();
-        return true;
-    }, [exit]);
+        exit()
+        return true
+    }, [exit])
 
     useFocusEffect(
         useCallback(() => {
-            const handler = BackHandler.addEventListener('hardwareBackPress', backAction);
-            return () => handler.remove();
+            const handler = BackHandler.addEventListener('hardwareBackPress', backAction)
+            return () => handler.remove()
         }, [backAction])
-    );
+    )
 
     const handleDeleteKV = () => {
         Alert.alert({
@@ -62,23 +62,22 @@ const ModelSettings: React.FC<ModelSettingsProp> = ({ modelImporting, modelLoadi
                 {
                     label: 'Delete KV Cache',
                     onPress: async () => {
-                        await KV.deleteKV();
-                        Logger.info('KV Cache deleted!');
-                        getKVSize();
+                        await KV.deleteKV()
+                        Logger.info('KV Cache deleted!')
+                        getKVSize()
                     },
                     type: 'warning',
                 },
             ],
-        });
-    };
+        })
+    }
 
     return (
         <Animated.ScrollView
             showsVerticalScrollIndicator={false}
             style={{ flex: 1 }}
             entering={SlideInRight.easing(Easing.inOut(Easing.cubic))}
-            exiting={SlideOutRight.easing(Easing.inOut(Easing.cubic))}
-        >
+            exiting={SlideOutRight.easing(Easing.inOut(Easing.cubic))}>
             <SectionTitle>CPU Settings</SectionTitle>
             <View style={{ marginTop: 16 }} />
             {config && (
@@ -153,7 +152,7 @@ const ModelSettings: React.FC<ModelSettingsProp> = ({ modelImporting, modelLoadi
                 />
             )}
         </Animated.ScrollView>
-    );
-};
+    )
+}
 
-export default ModelSettings;
+export default ModelSettings

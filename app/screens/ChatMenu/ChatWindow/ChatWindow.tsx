@@ -28,7 +28,7 @@ const ChatWindow = () => {
 
     const list: ListItem[] = (chat?.messages ?? [])
         .map((item, index) => ({
-            index: index,
+            index,
             key: item.id.toString(),
             isGreeting: index === 0,
             isLastMessage: !!chat?.messages && index === chat?.messages.length - 1,

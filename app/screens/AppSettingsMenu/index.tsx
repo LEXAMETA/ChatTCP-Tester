@@ -1,16 +1,16 @@
-import HeaderTitle from '@components/views/HeaderTitle';
-import { Theme } from '@lib/theme/ThemeManager';
-import React from 'react';
-import { ScrollView, View } from 'react-native';
+import HeaderTitle from '@components/views/HeaderTitle'
+import { Theme } from '@lib/theme/ThemeManager'
+import React from 'react'
+import { ScrollView, View } from 'react-native'
 
-import ScreenSettings from './ScreenSettings'; // Moved before NotificationSettings
-import NotificationSettings from './NotificationSettings';
-import CharacterSettings from './CharacterSettings';
-import ChatSettings from './ChatSettings';
-import DatabaseSettings from './DatabaseSettings';
-import GeneratingSettings from './GeneratingSettings';
-import SecuritySettings from './SecuritySettings';
-import StyleSettings from './StyleSettings';
+import CharacterSettings from './CharacterSettings'
+import ChatSettings from './ChatSettings'
+import DatabaseSettings from './DatabaseSettings'
+import GeneratingSettings from './GeneratingSettings'
+import NotificationSettings from './NotificationSettings'
+import ScreenSettings from './ScreenSettings' // Moved before NotificationSettings
+import SecuritySettings from './SecuritySettings'
+import StyleSettings from './StyleSettings'
 
 const AppSettingsMenu = () => {
     const { spacing } = Theme.useTheme()
@@ -40,4 +40,3 @@ const AppSettingsMenu = () => {
 }
 
 export default AppSettingsMenu
-

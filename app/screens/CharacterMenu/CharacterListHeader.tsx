@@ -60,21 +60,21 @@ export const useCharacterListSorter = create<CharacterListSorterProps>()((set, g
     setSortType: (sortType: SortType) => {
         set((stete) => ({
             ...stete,
-            sortType: sortType,
+            sortType,
             sortAndFilterCharInfo: getFilter(get().textFilter, get().tagFilter, sortType),
         }))
     },
     setTextFilter: (textFilter: string) => {
         set((stete) => ({
             ...stete,
-            textFilter: textFilter,
+            textFilter,
             sortAndFilterCharInfo: getFilter(textFilter, get().tagFilter, get().sortType),
         }))
     },
     setTagFilter: (tagFilter: string[]) => {
         set((stete) => ({
             ...stete,
-            tagFilter: tagFilter,
+            tagFilter,
             sortAndFilterCharInfo: getFilter(get().textFilter, tagFilter, get().sortType),
         }))
     },

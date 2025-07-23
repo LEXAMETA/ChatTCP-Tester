@@ -185,7 +185,7 @@ export const useTTSState = create<TTSState>()(
                 Speech.speak(text, {
                     language: currentSpeaker?.language,
                     voice: currentSpeaker?.identifier,
-                    onDone: onDone,
+                    onDone,
                     onStopped: onStop,
                     rate: get().rate,
                 })

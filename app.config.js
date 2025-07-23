@@ -2,10 +2,10 @@ const IS_DEV = process.env.APP_VARIANT === 'development'
 
 module.exports = {
     expo: {
-        name: IS_DEV ? 'LEXAmeta-Test (DEV)' : 'ChatTCP-Test',
+        name: IS_DEV ? 'LEXAmeta-Tester (DEV)' : 'ChatTCP-Tester',
         newArchEnabled: true,
-        slug: 'lexameta-test',
-        version: '0.5.1',
+        slug: 'lexameta-tester',
+        version: '0.6.1',
         orientation: 'default',
         icon: './assets/images/icon.png',
         scheme: 'chattcp-test',
@@ -18,8 +18,10 @@ module.exports = {
                 tinted: './assets/images/icon.png',
             },
             supportsTablet: true,
-            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.test' : 'com.LEXAmeta.ChatTCP.test',
-            bundleIdentifier: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.test' : 'com.LEXAmeta.ChatTCP.test',
+            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.tester' : 'com.LEXAmeta.ChatTCP.tester',
+            bundleIdentifier: IS_DEV
+                ? 'com.LEXAmeta.ChatTCPDev.tester'
+                : 'com.LEXAmeta.ChatTCP.tester',
         },
         android: {
             adaptiveIcon: {
@@ -28,7 +30,7 @@ module.exports = {
                 monochromeImage: './assets/images/adaptive-icon-foreground.png',
                 backgroundColor: '#000',
             },
-            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.test' : 'com.LEXAmeta.ChatTCP.test',
+            package: IS_DEV ? 'com.LEXAmeta.ChatTCPDev.tester' : 'com.LEXAmeta.ChatTCP.tester',
             userInterfaceStyle: 'dark',
             permissions: [
                 'android.permission.FOREGROUND_SERVICE',
@@ -97,8 +99,9 @@ module.exports = {
                 origin: false,
             },
             eas: {
-                projectId: 'ce93f56a-bd21-4337-a364-f93f2356441d',
+                // THIS IS WHERE YOU ADD THE projectId LINE
+                projectId: '3f169a70-b4b9-4f40-b267-bb2f1f704edb',
             },
-        } // No comma here, as 'extra' is the last property of 'expo'
+        }, // No comma here, as 'extra' is the last property of 'expo'
     }, // This closes the 'expo' object
-}; // This closes the 'module.exports' object
+} // This closes the 'module.exports' object

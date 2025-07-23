@@ -64,7 +64,7 @@ const AvatarViewer: React.FC<AvatarViewerProps> = ({ editorButton = true }) => {
                     <Avatar
                         contentFit="cover"
                         targetImage={Characters.getImageDir(imageId ?? -1)}
-                        style={[styles.avatar, { aspectRatio: aspectRatio }]}
+                        style={[styles.avatar, { aspectRatio }]}
                     />
                     <Text style={styles.name}>{name}</Text>
                     <View style={styles.buttonContainer}>

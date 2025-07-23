@@ -1,3 +1,4 @@
+import { localDownload } from '@vali98/react-native-fs'
 import { getDocumentAsync } from 'expo-document-picker'
 import {
     cacheDirectory,
@@ -7,7 +8,6 @@ import {
 } from 'expo-file-system'
 
 import { Logger } from '../state/Logger'
-import { localDownload } from '@vali98/react-native-fs'
 
 export const AppDirectory = {
     ModelPath: `${documentDirectory}models/`,
@@ -38,7 +38,7 @@ type PickerResult = { success: false } | { success: true; data: string }
 type JSONPickerResult = { success: false } | { success: true; data: any }
 
 export const pickJSONDocument = async (multiple: boolean = false): Promise<JSONPickerResult> => {
-    const result = await pickStringDocument({ type: 'application/json', multiple: multiple })
+    const result = await pickStringDocument({ type: 'application/json', multiple })
     if (!result.success) return result
     try {
         const jsonData = JSON.parse(result.data)
@@ -57,18 +57,18 @@ export const pickStringDocument = async ({
     encoding?: 'utf8' | 'base64'
     type?: string
 } = {}): Promise<PickerResult> => {
-    const result = await getDocumentAsync({ type: type })
+    const result = await getDocumentAsync({ type })
     if (result.canceled) {
         return { success: false }
     }
     const uri = result.assets[0].uri
-    const data = await readAsStringAsync(uri, { encoding: encoding }).catch((e) => {
+    const data = await readAsStringAsync(uri, { encoding }).catch((e) => {
         Logger.info(`Failed to read file: ${e}`)
     })
     if (!data) {
         return { success: false }
     }
-    return { success: true, data: data }
+    return { success: true, data }
 }
 
 const gb = 1000 ** 3
@@ -88,4 +88,3 @@ export const readableFileSize = (size: number) => {
         return `${sizeInGB.toFixed(2)} GB`
     }
 }
-

@@ -49,7 +49,7 @@ const useAlert = create<AlertState>()((set, get) => ({
         set((state) => ({ ...state, visible: false }))
     },
     show: (props: AlertProps) => {
-        set((state) => ({ ...state, visible: true, props: props }))
+        set((state) => ({ ...state, visible: true, props }))
     },
 }))
 

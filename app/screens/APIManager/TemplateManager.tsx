@@ -11,11 +11,11 @@ import { FlatList, Text, View } from 'react-native'
 import TemplateItem from './TemplateItem'
 
 const TemplateManager = () => {
-  const { templates, addTemplate } = APIState.useAPIState((state) => ({
-    templates: state.customTemplates,
-    addTemplate: state.addTemplate,
-  }));
-    
+    const { templates, addTemplate } = APIState.useAPIState((state) => ({
+        templates: state.customTemplates,
+        addTemplate: state.addTemplate,
+    }))
+
     const { color, spacing } = Theme.useTheme()
 
     return (

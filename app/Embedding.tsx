@@ -200,7 +200,7 @@ export namespace EmbeddingState {
             if (!model) return
             set((state) => ({
                 ...state,
-                model: model,
+                model,
             }))
         },
         getEmbedding: async (text: string) => {

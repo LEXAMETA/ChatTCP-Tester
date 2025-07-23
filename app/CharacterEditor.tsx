@@ -161,7 +161,7 @@ const ChracterEditor = () => {
 
         const greetings = [
             ...(characterCard?.alternate_greetings ?? []),
-            { id: id, greeting: '', character_id: charId },
+            { id, greeting: '', character_id: charId },
         ]
         setCharacterCardEdited({ ...characterCard, alternate_greetings: greetings })
         if (characterCard.alternate_greetings.length !== 0) {

@@ -149,7 +149,7 @@ const TTSMenu = () => {
                         Speech.speak(testAudioText, {
                             language: voice.language,
                             voice: voice.identifier,
-                            rate: rate,
+                            rate,
                         })
                     }}
                 />

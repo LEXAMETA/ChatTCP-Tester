@@ -77,10 +77,10 @@ const segmentText = (text: string, query: string): SnippetResult => {
     const showTailEllipsis = end < text.length
 
     return {
-        head: head,
+        head,
         query: queryText,
-        tail: tail,
-        showHeadEllipsis: showHeadEllipsis,
-        showTailEllipsis: showTailEllipsis,
+        tail,
+        showHeadEllipsis,
+        showTailEllipsis,
     }
 }

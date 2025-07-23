@@ -1,77 +1,77 @@
-import { Storage } from '@lib/enums/Storage';
-import { AppDirectory, readableFileSize } from '@lib/utils/File';
-import { CompletionParams, ContextParams, initLlama, LlamaContext } from 'cui-llama.rn';
-import { ModelDataType } from 'db/schema';
-import { getInfoAsync, writeAsStringAsync } from 'expo-file-system';
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { Storage } from '@lib/enums/Storage'
+import { AppDirectory, readableFileSize } from '@lib/utils/File'
+import { CompletionParams, ContextParams, initLlama, LlamaContext } from 'cui-llama.rn'
+import { ModelDataType } from 'db/schema'
+import { getInfoAsync, writeAsStringAsync } from 'expo-file-system'
+import { create } from 'zustand'
+import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { checkGGMLDeprecated } from './GGML';
-import { KV } from './Model';
-import { AppSettings } from '../../constants/GlobalValues';
-import { Logger } from '../../state/Logger';
-import { mmkv, mmkvStorage } from '../../storage/MMKV';
+import { checkGGMLDeprecated } from './GGML'
+import { KV } from './Model'
+import { AppSettings } from '../../constants/GlobalValues'
+import { Logger } from '../../state/Logger'
+import { mmkv, mmkvStorage } from '../../storage/MMKV'
 
 export type CompletionTimings = {
-    predicted_per_token_ms: number;
-    predicted_per_second: number | null;
-    predicted_ms: number;
-    predicted_n: number;
+    predicted_per_token_ms: number
+    predicted_per_second: number | null
+    predicted_ms: number
+    predicted_n: number
 
-    prompt_per_token_ms: number;
-    prompt_per_second: number | null;
-    prompt_ms: number;
-    prompt_n: number;
-};
+    prompt_per_token_ms: number
+    prompt_per_second: number | null
+    prompt_ms: number
+    prompt_n: number
+}
 
 export type CompletionOutput = {
-    text: string;
-    timings: CompletionTimings;
-};
+    text: string
+    timings: CompletionTimings
+}
 
 export type LlamaState = {
-    context: LlamaContext | undefined;
-    model: ModelDataType | undefined;
-    loadProgress: number;
-    chatCount: number;
-    promptCache?: string;
-    load: (model: ModelDataType) => Promise<void>;
-    setLoadProgress: (progress: number) => void;
-    unload: () => Promise<void>;
-    saveKV: (prompt: string | undefined) => Promise<void>;
-    loadKV: () => Promise<boolean>;
+    context: LlamaContext | undefined
+    model: ModelDataType | undefined
+    loadProgress: number
+    chatCount: number
+    promptCache?: string
+    load: (model: ModelDataType) => Promise<void>
+    setLoadProgress: (progress: number) => void
+    unload: () => Promise<void>
+    saveKV: (prompt: string | undefined) => Promise<void>
+    loadKV: () => Promise<boolean>
     completion: (
         params: CompletionParams,
         callback: (text: string) => void,
         completed: (text: string, timings: CompletionTimings) => void
-    ) => Promise<void>;
-    stopCompletion: () => Promise<void>;
-    tokenLength: (text: string) => number;
-    tokenize: (text: string) => { tokens: number[] } | undefined;
-};
+    ) => Promise<void>
+    stopCompletion: () => Promise<void>
+    tokenLength: (text: string) => number
+    tokenize: (text: string) => { tokens: number[] } | undefined
+}
 
 export type LlamaConfig = {
-    context_length: number;
-    threads: number;
-    gpu_layers: number;
-    batch: number;
-};
+    context_length: number
+    threads: number
+    gpu_layers: number
+    batch: number
+}
 
 export type EngineDataProps = {
-    config: LlamaConfig;
-    lastModel?: ModelDataType;
-    setConfiguration: (config: LlamaConfig) => void;
-    setLastModelLoaded: (model: ModelDataType) => void;
-};
+    config: LlamaConfig
+    lastModel?: ModelDataType
+    setConfiguration: (config: LlamaConfig) => void
+    setLastModelLoaded: (model: ModelDataType) => void
+}
 
-const sessionFile = `${AppDirectory.SessionPath}llama-session.bin`;
+const sessionFile = `${AppDirectory.SessionPath}llama-session.bin`
 
 const defaultConfig: LlamaConfig = {
     context_length: 4096,
     threads: 4,
     gpu_layers: 0,
     batch: 512,
-};
+}
 
 export namespace Llama {
     export const useEngineData = create<EngineDataProps>()(
@@ -80,10 +80,10 @@ export namespace Llama {
                 config: defaultConfig,
                 lastModel: undefined,
                 setConfiguration: (config: LlamaConfig) => {
-                    set((state) => ({ ...state, config }));
+                    set((state) => ({ ...state, config }))
                 },
                 setLastModelLoaded: (model: ModelDataType) => {
-                    set((state) => ({ ...state, lastModel: model }));
+                    set((state) => ({ ...state, lastModel: model }))
                 },
             }),
             {
@@ -96,7 +96,7 @@ export namespace Llama {
                 version: 1,
             }
         )
-    );
+    )
 
     export const useLlama = create<LlamaState>()((set, get) => ({
         context: undefined,
@@ -105,26 +105,26 @@ export namespace Llama {
         model: undefined,
         promptCache: undefined,
         load: async (model: ModelDataType) => {
-            const config = useEngineData.getState().config;
+            const config = useEngineData.getState().config
 
             if (get()?.model?.id === model.id) {
-                Logger.errorToast('Model Already Loaded!');
-                return;
+                Logger.errorToast('Model Already Loaded!')
+                return
             }
 
             if (checkGGMLDeprecated(parseInt(model.quantization, 10))) {
-                Logger.errorToast('Quantization No Longer Supported!');
-                return;
+                Logger.errorToast('Quantization No Longer Supported!')
+                return
             }
 
-            const info = await getInfoAsync(model.file_path);
+            const info = await getInfoAsync(model.file_path)
             if (!info.exists) {
-                Logger.errorToast('Model Does Not Exist!');
-                return;
+                Logger.errorToast('Model Does Not Exist!')
+                return
             }
 
             if (get().context !== undefined) {
-                await get().unload();
+                await get().unload()
             }
 
             const params: ContextParams = {
@@ -132,129 +132,129 @@ export namespace Llama {
                 n_ctx: config.context_length,
                 n_threads: config.threads,
                 n_batch: config.batch,
-            };
+            }
 
             Logger.info(
                 `\n------ MODEL LOAD -----\n Model Name: ${model.name}\nStarting with parameters: \nContext Length: ${params.n_ctx}\nThreads: ${params.n_threads}\nBatch Size: ${params.n_batch}`
-            );
+            )
 
             const progressCallback = (progress: number) => {
-                if (progress % 5 === 0) get().setLoadProgress(progress);
-            };
+                if (progress % 5 === 0) get().setLoadProgress(progress)
+            }
 
             const llamaContext = await initLlama(params, progressCallback).catch((error) => {
-                Logger.errorToast(`Could Not Load Model: ${error} `);
-            });
+                Logger.errorToast(`Could Not Load Model: ${error} `)
+            })
 
-            if (!llamaContext) return;
+            if (!llamaContext) return
 
             set((state) => ({
                 ...state,
                 context: llamaContext,
-                model: model,
+                model,
                 chatCount: 1,
-            }));
+            }))
 
             // Update EngineData
-            useEngineData.getState().setLastModelLoaded(model);
-            KV.useKVState.getState().setKvCacheLoaded(false);
+            useEngineData.getState().setLastModelLoaded(model)
+            KV.useKVState.getState().setKvCacheLoaded(false)
         },
         setLoadProgress: (progress: number) => {
-            set((state) => ({ ...state, loadProgress: progress }));
+            set((state) => ({ ...state, loadProgress: progress }))
         },
         unload: async () => {
-            await get().context?.release();
+            await get().context?.release()
             set((state) => ({
                 ...state,
                 context: undefined,
                 model: undefined,
-            }));
+            }))
         },
         completion: async (
             params: CompletionParams,
             callback = (text: string) => {},
             completed = (text: string, timings: CompletionTimings) => {}
         ) => {
-            const llamaContext = get().context;
+            const llamaContext = get().context
             if (llamaContext === undefined) {
-                Logger.errorToast('No Model Loaded');
-                return;
+                Logger.errorToast('No Model Loaded')
+                return
             }
 
             return llamaContext
                 .completion(params, (data: any) => {
-                    callback(data.token);
+                    callback(data.token)
                 })
                 .then(async ({ text, timings }: CompletionOutput) => {
-                    completed(text, timings);
+                    completed(text, timings)
                     Logger.info(
                         `\n---- Start Chat ${get().chatCount} ----\n${textTimings(timings)}\n---- End Chat ${get().chatCount} ----\n`
-                    );
-                    set((state) => ({ ...state, chatCount: get().chatCount + 1 }));
+                    )
+                    set((state) => ({ ...state, chatCount: get().chatCount + 1 }))
                     if (mmkv.getBoolean(AppSettings.SaveLocalKV)) {
-                        await get().saveKV(params.prompt);
+                        await get().saveKV(params.prompt)
                     }
-                });
+                })
         },
         stopCompletion: async () => {
-            await get().context?.stopCompletion();
+            await get().context?.stopCompletion()
         },
         saveKV: async (prompt: string | undefined) => {
-            const llamaContext = get().context;
+            const llamaContext = get().context
             if (!llamaContext) {
-                Logger.errorToast('No Model Loaded');
-                return;
+                Logger.errorToast('No Model Loaded')
+                return
             }
 
             if (prompt) {
-                const tokens = get().tokenize(prompt)?.tokens;
-                KV.useKVState.getState().setKvCacheTokens(tokens ?? []);
+                const tokens = get().tokenize(prompt)?.tokens
+                KV.useKVState.getState().setKvCacheTokens(tokens ?? [])
             }
 
-            const info = await getInfoAsync(sessionFile);
+            const info = await getInfoAsync(sessionFile)
             if (!info.exists) {
-                await writeAsStringAsync(sessionFile, '', { encoding: 'base64' });
+                await writeAsStringAsync(sessionFile, '', { encoding: 'base64' })
             }
 
-            const now = performance.now();
-            const data = await llamaContext.saveSession(sessionFile.replace('file://', ''));
+            const now = performance.now()
+            const data = await llamaContext.saveSession(sessionFile.replace('file://', ''))
             Logger.info(
                 data === -1
                     ? 'Failed to save KV cache'
                     : `Saved KV in ${Math.floor(performance.now() - now)}ms with ${data} tokens`
-            );
-            Logger.info(`Current KV Size is: ${readableFileSize(await KV.getKVSize())}`);
+            )
+            Logger.info(`Current KV Size is: ${readableFileSize(await KV.getKVSize())}`)
         },
         loadKV: async () => {
-            let result = false;
-            const llamaContext = get().context;
+            let result = false
+            const llamaContext = get().context
             if (!llamaContext) {
-                Logger.errorToast('No Model Loaded');
-                return false;
+                Logger.errorToast('No Model Loaded')
+                return false
             }
-            const data = await getInfoAsync(sessionFile);
+            const data = await getInfoAsync(sessionFile)
             if (!data.exists) {
-                Logger.warn('No Cache found');
-                return false;
+                Logger.warn('No Cache found')
+                return false
             }
             await llamaContext
                 .loadSession(sessionFile.replace('file://', ''))
                 .then(() => {
-                    Logger.info('Session loaded from KV cache');
-                    result = true;
+                    Logger.info('Session loaded from KV cache')
+                    result = true
                 })
                 .catch(() => {
-                    Logger.error('Session could not load from KV cache');
-                });
-            return result;
+                    Logger.error('Session could not load from KV cache')
+                })
+            return result
         },
         tokenLength: (text: string) => {
-            return get().context?.tokenizeSync(text)?.tokens?.length ?? 0;
+            return get().context?.tokenizeSync(text)?.tokens?.length ?? 0
         },
         tokenize: (text: string) => {
-            return get().context?.tokenizeSync(text);
+            return get().context?.tokenizeSync(text)
         },
-    }));
+    }))
 
     const textTimings = (timings: CompletionTimings) => {
         return (
@@ -272,8 +272,8 @@ export namespace Llama {
                   `\nPrediction Time: ${(timings.predicted_ms / 1000).toFixed(2)}s` +
                   `\nPredicted Tokens: ${timings.predicted_n} tokens\n`
                 : '\nNo Tokens Generated')
-        );
-    };
+        )
+    }
 
     // Downloaders - Old Placeholder
     /*
