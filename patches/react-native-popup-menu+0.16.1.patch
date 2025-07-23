@@ -44,4 +44,3 @@ index 1111c2d..c8e21c4 100644
          return /*#__PURE__*/React__default.createElement(reactNative.Animated.View, {
            style: [styles$6.animated, animation, position, getContainerStyle({
              placement: placement,
-             
