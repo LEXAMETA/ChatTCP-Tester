@@ -8,7 +8,6 @@ public/
 
 # builds
 android
-eas.json
 *.apk
 .gradle
 ios
