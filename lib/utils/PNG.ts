@@ -1,218 +1,209 @@
+// lib/utils/PNG.ts
 import { atob } from 'react-native-quick-base64'
 
-export const getPngChunkText = (filedata: string) => {
-    const binaryString = atob(filedata)
-    const bytes = Uint8Array.from(binaryString, (a) => a.charCodeAt(0))
-    const chunk = extractChunks(bytes)
-    const raw = atob(utf8Decode(decodePNG(chunk).text))
-    return JSON.parse(utf8Decode(Uint8Array.from(raw, (a) => a.charCodeAt(0))))
+/**
+ * Extracts and decodes the JSON object embedded in the PNG's tEXt chunk.
+ * Assumes the text chunk payload is base64-encoded JSON UTF-8 string.
+ * 
+ * @param filedata Base64 encoded PNG file data
+ * @returns Parsed JSON object from the tEXt chunk
+ * @throws {Error} On invalid PNG structure, missing tEXt chunk, CRC error, or malformed JSON
+ */
+export function getPngChunkText(filedata: string): any {
+  // Decode base64 to Uint8Array
+  const binaryString = atob(filedata)
+  const bytes = Uint8Array.from(binaryString, (c) => c.charCodeAt(0))
+
+  // Extract tEXt chunk data (keyword + text)
+  const tEXtData = extractTextChunk(bytes)
+
+  // Decode keyword and text parts of the tEXt chunk
+  const { keyword, text } = decodeTextChunk(tEXtData)
+
+  // According to your convention, "text" holds base64-encoded JSON UTF-8 string
+  // Decode base64 string to UTF-8 byte array
+  const base64Decoded = base64ToUint8Array(utf8Decode(text))
+
+  // Decode UTF-8 to string
+  const jsonString = utf8Decode(base64Decoded)
+
+  try {
+    return JSON.parse(jsonString)
+  } catch (e) {
+    throw new Error(`Malformed JSON in tEXt chunk: ${(e as Error).message}`)
+  }
 }
 
-/// PNG DATA
+/**
+ * Valid PNG signature bytes (8 bytes)
+ */
+const PNG_SIGNATURE = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
-function extractChunks(data: Uint8Array) {
-    if (data[0] !== 0x89 || data[1] !== 0x50 || data[2] !== 0x4e || data[3] !== 0x47)
-        throw new Error('Invalid .png file header')
+/**
+ * Extracts the tEXt chunk data from the PNG byte array.
+ * Performs signature check, chunk iteration, CRC validation.
+ * 
+ * @param data Complete PNG file bytes
+ * @returns Uint8Array of the tEXt chunk payload (keyword + null + text)
+ * @throws {Error} On invalid PNG signature, missing IHDR, no tEXt chunk, or CRC errors
+ */
+function extractTextChunk(data: Uint8Array): Uint8Array {
+  // Validate PNG signature
+  for (let i = 0; i < PNG_SIGNATURE.length; i++) {
+    if (data[i] !== PNG_SIGNATURE[i]) throw new Error('Invalid PNG signature')
+  }
 
-    if (data[4] !== 0x0d || data[5] !== 0x0a || data[6] !== 0x1a || data[7] !== 0x0a)
-        throw new Error(
-            'Invalid .png file header: possibly caused by DOS-Unix line ending conversion?'
-        )
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  let offset = PNG_SIGNATURE.length
+  let seenIHDR = false
 
-    let idx = 8
+  while (offset + 8 <= data.length) {
+    const length = view.getUint32(offset, false) // Big-endian length
+    offset += 4
 
-    let firstiter = true
-    const uint8 = new Uint8Array(4)
-    const int32 = new Int32Array(uint8.buffer)
-    const uint32 = new Uint32Array(uint8.buffer)
-
-    while (idx < data.length) {
-        uint8[3] = data[idx++]
-        uint8[2] = data[idx++]
-        uint8[1] = data[idx++]
-        uint8[0] = data[idx++]
-
-        const length = uint32[0] + 4
-        const chunk = new Uint8Array(length)
-
-        chunk[0] = data[idx++]
-        chunk[1] = data[idx++]
-        chunk[2] = data[idx++]
-        chunk[3] = data[idx++]
-
-        // Get the name in ASCII for identification.
-
-        const name =
-            String.fromCharCode(chunk[0]) +
-            String.fromCharCode(chunk[1]) +
-            String.fromCharCode(chunk[2]) +
-            String.fromCharCode(chunk[3])
-        // The IHDR header MUST come first.
-
-        if (firstiter && name !== 'IHDR') {
-            throw new Error('IHDR header missing')
-        } else {
-            firstiter = false
-        }
-        // for cui, we only want the tEXt chunk
-        if (name !== 'tEXt') {
-            idx += length
-            continue
-        }
-
-        for (let i = 4; i < length; i++) {
-            chunk[i] = data[idx++]
-        }
-
-        // Read out the CRC value for comparison.
-
-        // It's stored as an Int32.
-
-        uint8[3] = data[idx++]
-        uint8[2] = data[idx++]
-        uint8[1] = data[idx++]
-        uint8[0] = data[idx++]
-
-        const crcActual = int32[0]
-
-        const crcExpect = crc32_buf(chunk)
-        if (crcExpect !== crcActual) {
-            throw new Error(
-                'CRC values for ' + name + ' header do not match, PNG file is likely corrupted'
-            )
-        }
-        // skip the rest of the chunks
-        return new Uint8Array(chunk.buffer.slice(4))
+    if (offset + 4 + length + 4 > data.length) { 
+      throw new Error('Unexpected end of PNG data')
     }
 
-    throw new Error('No tEXt chunk found!')
-}
+    // Read chunk type bytes and convert to string
+    const chunkType = String.fromCharCode(
+      data[offset],
+      data[offset + 1],
+      data[offset + 2],
+      data[offset + 3]
+    )
+    offset += 4
 
-function decodePNG(data: Uint8Array) {
-    const index = data.indexOf(0)
-
-    const name = data.slice(0, index)
-    const textUint8Array = data.slice(index + 1)
-    return {
-        keyword: name,
-        text: textUint8Array,
-    }
-}
-
-function signed_crc_table() {
-    let c = 0
-    const table = new Array(256)
-
-    for (let n = 0; n !== 256; ++n) {
-        c = n
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        c = c & 1 ? -306674912 ^ (c >>> 1) : c >>> 1
-        table[n] = c
+    if (!seenIHDR) {
+      if (chunkType !== 'IHDR') throw new Error('First chunk must be IHDR')
+      seenIHDR = true
     }
 
-    return new Int32Array(table)
-}
+    // Extract chunk data bytes
+    const chunkData = data.slice(offset, offset + length)
+    offset += length
 
-const T0 = signed_crc_table()
+    // Read CRC from file
+    const crcRead = view.getUint32(offset, false)
+    offset += 4
 
-function slice_by_16_tables(T: Int32Array) {
-    let c = 0,
-        v = 0,
-        n = 0
-    const table = new Int32Array(4096)
+    // Calculate CRC over chunk type + chunk data
+    const chunkTypeBytes = Uint8Array.from(chunkType.split('').map(c => c.charCodeAt(0)))
+    const calcBuffer = new Uint8Array(chunkTypeBytes.length + chunkData.length)
+    calcBuffer.set(chunkTypeBytes, 0)
+    calcBuffer.set(chunkData, chunkTypeBytes.length)
+    const crcCalc = crc32_buf(calcBuffer)
 
-    for (n = 0; n !== 256; ++n) table[n] = T[n]
-
-    for (n = 0; n !== 256; ++n) {
-        v = T[n]
-
-        for (c = 256 + n; c < 4096; c += 256) {
-            v = (v >>> 8) ^ T[v & 0xff]
-            table[c] = v
-        }
+    if (crcCalc !== crcRead) {
+      throw new Error(`CRC mismatch for chunk '${chunkType}'`)
     }
 
-    const out = []
-
-    for (n = 1; n !== 16; ++n) out[n - 1] = table.subarray(n * 256, n * 256 + 256)
-
-    return out
-}
-
-const TT = slice_by_16_tables(T0)
-
-const [T1, T2, T3, T4, T5, T6, T7, T8, T9, Ta, Tb, Tc, Td, Te, Tf, ..._] = TT
-
-function crc32_buf(B: Uint8Array) {
-    let C = -1,
-        L = B.length - 15,
-        i = 0
-
-    for (; i < L; )
-        C =
-            Tf[B[i++] ^ (C & 255)] ^
-            Te[B[i++] ^ ((C >> 8) & 255)] ^
-            Td[B[i++] ^ ((C >> 16) & 255)] ^
-            Tc[B[i++] ^ (C >>> 24)] ^
-            Tb[B[i++]] ^
-            Ta[B[i++]] ^
-            T9[B[i++]] ^
-            T8[B[i++]] ^
-            T7[B[i++]] ^
-            T6[B[i++]] ^
-            T5[B[i++]] ^
-            T4[B[i++]] ^
-            T3[B[i++]] ^
-            T2[B[i++]] ^
-            T1[B[i++]] ^
-            T0[B[i++]]
-
-    L += 15
-
-    while (i < L) C = (C >>> 8) ^ T0[(C ^ B[i++]) & 0xff]
-
-    return ~C
-}
-
-const utf8Decode = (bytes: Uint8Array): string => {
-    let string = ''
-    let i = 0
-
-    while (i < bytes.length) {
-        const byte1 = bytes[i++]
-        if (byte1 < 0x80) {
-            string += String.fromCharCode(byte1)
-        } else if (byte1 < 0xe0) {
-            const byte2 = bytes[i++]
-            string += String.fromCharCode(((byte1 & 0x1f) << 6) | (byte2 & 0x3f))
-        } else if (byte1 < 0xf0) {
-            const byte2 = bytes[i++]
-            const byte3 = bytes[i++]
-            string += String.fromCharCode(
-                ((byte1 & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
-            )
-        } else {
-            const byte2 = bytes[i++]
-            const byte3 = bytes[i++]
-            const byte4 = bytes[i++]
-            const codepoint =
-                (((byte1 & 0x07) << 18) |
-                    ((byte2 & 0x3f) << 12) |
-                    ((byte3 & 0x3f) << 6) |
-                    (byte4 & 0x3f)) -
-                0x10000
-            string += String.fromCharCode(
-                ((codepoint >> 10) & 0x3ff) | 0xd800,
-                (codepoint & 0x3ff) | 0xdc00
-            )
-        }
+    if (chunkType === 'tEXt') {
+      return chunkData
     }
+  }
 
-    return string
+  throw new Error('No tEXt chunk found in PNG file')
+}
+
+/**
+ * Decodes the tEXt chunk payload structure:
+ * [keyword (ASCII, null-terminated)]+[text (latin1 or utf8 bytes)]
+ * 
+ * @param data Uint8Array payload of tEXt chunk
+ * @returns Object with `keyword` and `text` Uint8Arrays
+ * @throws {Error} If null terminator not found
+ */
+function decodeTextChunk(data: Uint8Array): { keyword: Uint8Array; text: Uint8Array } {
+  const nullIndex = data.indexOf(0)
+  if (nullIndex === -1) {
+    throw new Error('Malformed tEXt chunk: missing null separator')
+  }
+  const keyword = data.slice(0, nullIndex)
+  const text = data.slice(nullIndex + 1)
+
+  return { keyword, text }
+}
+
+/**
+ * Decodes a Uint8Array with UTF-8 bytes into a JS string.
+ */
+function utf8Decode(bytes: Uint8Array): string {
+  // Use TextDecoder if available (React Native 0.65+ or polyfill)
+  if (typeof TextDecoder !== 'undefined') {
+    return new TextDecoder('utf-8').decode(bytes)
+  }
+
+  // Fallback UTF-8 decoder, same logic as your original
+  let str = ''
+  let i = 0
+
+  while (i < bytes.length) {
+    const byte1 = bytes[i++]
+    if (byte1 < 0x80) {
+      str += String.fromCharCode(byte1)
+    } else if (byte1 < 0xe0) {
+      const byte2 = bytes[i++]
+      str += String.fromCharCode(((byte1 & 0x1f) << 6) | (byte2 & 0x3f))
+    } else if (byte1 < 0xf0) {
+      const byte2 = bytes[i++]
+      const byte3 = bytes[i++]
+      str += String.fromCharCode(
+        ((byte1 & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f)
+      )
+    } else {
+      const byte2 = bytes[i++]
+      const byte3 = bytes[i++]
+      const byte4 = bytes[i++]
+      const codepoint =
+        (((byte1 & 0x07) << 18) |
+          ((byte2 & 0x3f) << 12) |
+          ((byte3 & 0x3f) << 6) |
+          (byte4 & 0x3f)) -
+        0x10000
+      str += String.fromCharCode(
+        ((codepoint >> 10) & 0x3ff) | 0xd800,
+        (codepoint & 0x3ff) | 0xdc00
+      )
+    }
+  }
+
+  return str
+}
+
+/**
+ * Converts base64 string to Uint8Array.
+ */
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64)
+  return Uint8Array.from(binary, c => c.charCodeAt(0))
+}
+
+/**
+ * CRC32 Calculation: precomputed table for speed (standard IEEE 802.3 polynomial).
+ */
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256)
+  for (let i = 0; i < 256; i++) {
+    let c = i
+    for (let j = 0; j < 8; j++) {
+      c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1)
+    }
+    table[i] = c >>> 0
+  }
+  return table
+})()
+
+/**
+ * Calculates the CRC32 checksum of a Uint8Array.
+ * @param buf The input buffer
+ * @returns CRC32 checksum as unsigned number
+ */
+function crc32_buf(buf: Uint8Array): number {
+  let crc = 0xffffffff
+  for (let i = 0; i < buf.length; i++) {
+    const byte = buf[i]
+    crc = (CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8)) >>> 0
+  }
+  return (crc ^ 0xffffffff) >>> 0
 }
