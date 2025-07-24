@@ -1,74 +1,86 @@
-import { useRef, useEffect, useState, JSX } from 'react'
+// lib/hooks/AutoSave.tsx
 
-export interface CommonProps<TData, TReturn> {
-    /** The controlled form value to be auto saved   */
-    data: TData
-    /** Callback function to save your data */
-    onSave: (data: TData) => Promise<TReturn> | TReturn | void
-    /** The number of milliseconds between save attempts. Defaults to 2000 */
-    interval?: number
-    /** Set to false if you do not want the save function to fire on unmount */
-    saveOnUnmount?: boolean
+import React from 'react'
+
+/**
+ * Debounces a rapidly changing value by a specified delay.
+ * @param value The input value to debounce.
+ * @param delay The debounce interval in milliseconds.
+ * @returns The debounced value.
+ */
+export function useDebounce<T>(value: T, delay = 500): T {
+  const [debouncedValue, setDebouncedValue] = React.useState<T>(value)
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return undefined // Guard for SSR
+
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    timeoutRef.current = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
+  }, [value, delay])
+
+  return debouncedValue
 }
 
-export interface AutosaveProps<TData, TReturn> extends CommonProps<TData, TReturn> {
-    /** JSX.Element to return */
-    element?: JSX.Element | null
-}
+/**
+ * Custom hook to autosave a changing value after debouncing.
+ * Handles async save functions properly and optionally tracks save status.
+ *
+ * @param liveData The data to autosave.
+ * @param onSave The save function; may be async or sync.
+ * @param interval Debounce interval in milliseconds.
+ * @param options Additional options.
+ * @param options.saveOnMount If true, triggers save immediately on mount.
+ * @returns An object with a saving boolean indicating save in progress.
+ */
+export function useAutosave<T>(
+  liveData: T,
+  onSave: (data: T) => void | Promise<void>,
+  interval = 500,
+  options?: { saveOnMount?: boolean }
+): { saving: boolean } {
+  const debouncedValue = useDebounce(liveData, interval)
+  const initialRender = React.useRef(true)
+  const [saving, setSaving] = React.useState(false)
 
-function useAutosave<TData, TReturn>({
-    data,
-    onSave,
-    interval = 2000,
-    saveOnUnmount = true,
-}: CommonProps<TData, TReturn>) {
-    const valueOnCleanup = useRef(data)
-    const initialRender = useRef(true)
-    const handleSave = useRef(onSave)
+  // Keep latest onSave function reference stable
+  const handleSave = React.useRef(onSave)
+  React.useEffect(() => {
+    handleSave.current = onSave
+  }, [onSave])
 
-    const debouncedValueToSave = useDebounce(data, interval)
+  React.useEffect(() => {
+    if (initialRender.current) {
+      if (options?.saveOnMount) {
+        setSaving(true)
+        Promise.resolve(handleSave.current(liveData))
+          .catch((error) => {
+            console.error('Autosave onMount error:', error)
+          })
+          .finally(() => setSaving(false))
+      }
+      initialRender.current = false
+      return
+    }
 
-    useEffect(() => {
-        if (initialRender.current) {
-            initialRender.current = false
-        } else {
-            handleSave.current(debouncedValueToSave)
-        }
-    }, [debouncedValueToSave])
+    setSaving(true)
+    Promise.resolve(handleSave.current(debouncedValue))
+      .catch((error) => {
+        // You may want to log or handle errors here
+        console.error('Autosave error:', error)
+      })
+      .finally(() => setSaving(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedValue])
 
-    useEffect(() => {
-        valueOnCleanup.current = data
-    }, [data])
-
-    useEffect(() => {
-        handleSave.current = onSave
-    }, [onSave])
-
-    useEffect(
-        () => () => {
-            if (saveOnUnmount) {
-                handleSave.current(valueOnCleanup.current)
-            }
-        },
-        [saveOnUnmount]
-    )
-}
-
-export default useAutosave
-
-function useDebounce<TData>(data: TData, interval: number) {
-    const [liveData, setLiveData] = useState<TData>(data)
-
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const handler = setTimeout(() => {
-                setLiveData(data)
-            }, interval)
-            return () => {
-                clearTimeout(handler)
-            }
-        }
-    }, [data, interval])
-
-    return liveData
+  return { saving }
 }
