@@ -1,283 +1,316 @@
+// lib/state/TTS.ts
 import { Storage } from '@lib/enums/Storage'
 import { Logger } from '@lib/state/Logger'
 import { mmkvStorage } from '@lib/storage/MMKV'
 import * as Speech from 'expo-speech'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-
 import { Chats, useInference } from './Chat'
 
 type TTSState = {
-    activeChatIndex?: number
-    voice?: Speech.Voice
-    enabled: boolean
-    auto: boolean
-    rate: number
-    startTTS: (text: string, index: number, callback?: () => void) => Promise<void>
-    stopTTS: () => Promise<void>
-    setEnabled: (b: boolean) => void
-    setAuto: (b: boolean) => void
-    setVoice: (v: Speech.Voice) => void
-    setRate: (r: number) => void
-    setLiveTTS: (b: boolean) => void
+  activeChatIndex?: number
+  voice?: Speech.Voice
+  enabled: boolean
+  auto: boolean
+  rate: number
+  liveTTS: boolean
+  pauseLive?: boolean
 
-    speak: (text: string, onDone?: () => void, onStop?: () => void) => void
-    handleEndGeneration: (lastIndex: number, text: string) => Promise<void>
-    handleStartGeneration: (lastIndex: number) => void
-    // stream TTS
-    liveTTS: boolean
-    pauseLive?: boolean
-    setPauseLive: (b: boolean) => void
-    buffer: string
-    clearAndRunBuffer: (lastIndex: number) => void
-    clearBuffer: () => void
-    /**
-     * Inserts text into the buffer, attempts TTS if valid sentence and adds remainder to buffer
-     * @param text text for TTS
-     * @returns
-     */
-    insertBuffer: (text: string) => void
+  buffer: string
+
+  startTTS: (text: string, index: number, exitCallback?: () => void) => Promise<void>
+  stopTTS: () => Promise<void>
+  setEnabled: (b: boolean) => void
+  setAuto: (b: boolean) => void
+  setVoice: (v: Speech.Voice) => void
+  setRate: (r: number) => void
+  setLiveTTS: (b: boolean) => void
+  setPauseLive: (b: boolean) => void
+
+  speak: (text: string, onDone?: () => void, onStop?: () => void) => void
+
+  handleEndGeneration: (lastIndex: number, text: string) => Promise<void>
+  handleStartGeneration: (lastIndex: number) => void
+
+  clearAndRunBuffer: (lastIndex: number) => void
+  clearBuffer: () => void
+  insertBuffer: (text: string) => void
 }
 
-const sentenceEndRegex =
-    /(?<=[^\d])([。…？！.?!])(?:["'`*_)]*)\s+(?=[A-Z0-9])|([。…？！.?!])(?:["'`*_)]*)$/gm
+// Regex to detect sentence endings for splitting into speakable chunks.
+// Positive lookbehind prevents splitting on decimal numbers.
+// We'll reuse this regex instance for buffer insertions and reset lastIndex as needed.
+const sentenceEndRegex = /(?<=[^\d])([.?!])(?:["'`*_)]*)\s+(?=[A-Z0-9])|([.?!])(?:["'`*_)]*)$/gm
 
-export const useTTS = () => {
-    const {
-        startTTS,
-        activeChatIndex,
-        stopTTS,
-        setVoice,
-        setEnabled,
-        setAuto,
-        setRate,
-        auto,
-        enabled,
-        voice,
-        rate,
-        live,
-        setLive,
-    } = useTTSState((state) => ({
-        startTTS: state.startTTS,
-        stopTTS: state.stopTTS,
-        activeChatIndex: state.activeChatIndex,
-        setVoice: state.setVoice,
-        setEnabled: state.setEnabled,
-        setAuto: state.setAuto,
-        setRate: state.setRate,
-        auto: state.auto,
-        enabled: state.enabled,
-        voice: state.voice,
-        rate: state.rate,
-        live: state.liveTTS,
-        setLive: state.setLiveTTS,
-    }))
-    return {
-        startTTS,
-        activeChatIndex,
-        stopTTS,
-        setVoice,
-        setEnabled,
-        setAuto,
-        setRate,
-        auto,
-        enabled,
-        voice,
-        rate,
-        live,
-        setLive,
-    }
+/**
+ * Debounce utility for delaying function calls to reduce frequency.
+ */
+function debounce<T extends (...args: any[]) => void>(fn: T, ms = 100) {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  return (...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer)
+    timer = setTimeout(() => {
+      fn(...args)
+      timer = null
+    }, ms)
+  }
 }
-
-useInference.subscribe(({ nowGenerating }) => {
-    const data = Chats.useChatState.getState().data
-    const length = data?.messages?.length
-    if (!length) return
-    if (!nowGenerating) {
-        const message = data?.messages?.[length - 1]
-        if (!message) return
-        useTTSState
-            .getState()
-            .handleEndGeneration(length - 1, message.swipes[message.swipe_id].swipe)
-    } else {
-        useTTSState.getState().handleStartGeneration(length - 1)
-    }
-})
 
 export const useTTSState = create<TTSState>()(
-    persist(
-        (set, get) => ({
-            voice: undefined,
-            enabled: false,
-            auto: false,
-            liveTTS: false,
-            rate: 1,
-            activeChatIndex: undefined,
-            startTTS: async (text: string, index: number, exitCallback = () => {}) => {
-                const clearIndex = () => {
-                    if (get().activeChatIndex === index)
-                        set((state) => ({ activeChatIndex: undefined }))
-                }
-
-                const currentSpeaker = get().voice
-
-                Logger.info('Starting TTS')
-                if (currentSpeaker === undefined) {
-                    Logger.errorToast(`No Speaker Chosen`)
-                    clearIndex()
-                    return
-                }
-                if (await Speech.isSpeakingAsync()) await Speech.stop()
-                const filter = /([。…！？、!?.,*"])/
-                const filteredchunks: string[] = []
-                const chunks = text.split(filter)
-                chunks.forEach((item, index) => {
-                    if (!filter.test(item) && item) return filteredchunks.push(item)
-                    if (index > 0)
-                        filteredchunks[filteredchunks.length - 1] =
-                            filteredchunks[filteredchunks.length - 1] + item
-                })
-                if (filteredchunks.length === 0) filteredchunks.push(text)
-
-                const cleanedchunks = filteredchunks.map((item) =>
-                    item.replaceAll(/[*"]/g, '').trim()
-                )
-                Logger.debug('TTS started with ' + cleanedchunks.length + ' chunks')
-                set((state) => ({ ...state, activeChatIndex: index }))
-                cleanedchunks.forEach((chunk, index) =>
-                    Speech.speak(chunk, {
-                        language: currentSpeaker?.language,
-                        voice: currentSpeaker?.identifier,
-                        onDone: () => {
-                            index === cleanedchunks.length - 1 && clearIndex()
-                        },
-                        onStopped: () => clearIndex(),
-                        rate: get().rate,
-                    })
-                )
-                if (cleanedchunks.length === 0) clearIndex()
-            },
-            stopTTS: async () => {
-                Logger.info('TTS stopped')
-                set((state) => ({ activeChatIndex: undefined }))
-                await Speech.stop()
-            },
-            setEnabled: (b: boolean) => {
-                set((state) => ({ enabled: b }))
-            },
-            setAuto: (b: boolean) => {
-                set((state) => ({ auto: b }))
-            },
-            setVoice: (v: Speech.Voice) => {
-                set((state) => ({ voice: v }))
-            },
-            setRate: (r: number) => {
-                set((state) => ({ rate: r }))
-            },
-            setLiveTTS: (b: boolean) => {
-                set((state) => ({ liveTTS: b }))
-            },
-            setPauseLive: (b: boolean) => {
-                set((state) => ({ pauseLive: b }))
-            },
-            speak: (text, onDone = () => {}, onStop = () => {}) => {
-                const currentSpeaker = get().voice
-                Speech.speak(text, {
-                    language: currentSpeaker?.language,
-                    voice: currentSpeaker?.identifier,
-                    onDone,
-                    onStopped: onStop,
-                    rate: get().rate,
-                })
-            },
-
-            handleEndGeneration: async (lastIndex, text) => {
-                if (get().activeChatIndex !== undefined) return
-                if (get().liveTTS) {
-                    get().clearAndRunBuffer(lastIndex)
-                } else if (get().enabled && get().auto) {
-                    await get().stopTTS()
-                    get().startTTS(text, lastIndex)
-                }
-            },
-
-            handleStartGeneration: async (lastIndex) => {
-                if (get().liveTTS) {
-                    await Speech.stop()
-                    set({ activeChatIndex: lastIndex })
-                }
-                set({ pauseLive: false })
-            },
-
-            // Stream Data
-
-            buffer: '',
-            clearAndRunBuffer: (lastIndex) => {
-                const buffer = get().buffer
-
-                if (!get().pauseLive && buffer.trim()) {
-                    const clean = cleanMarkdown(buffer)
-                    if (clean) {
-                        set({ activeChatIndex: lastIndex })
-                        get().speak(clean, () => set({ activeChatIndex: undefined }))
-                    }
-                } else {
-                    set({ activeChatIndex: undefined })
-                }
-                set({ buffer: '' })
-            },
-            clearBuffer: () => {
-                set({ buffer: '' })
-            },
-            insertBuffer: (text: string) => {
-                if (!get().liveTTS || get().pauseLive) return
-                const newBuffer = get().buffer + text
-
-                let lastMatchIndex = -1
-                let match
-
-                while ((match = sentenceEndRegex.exec(newBuffer)) !== null) {
-                    lastMatchIndex = sentenceEndRegex.lastIndex
-                }
-
-                if (lastMatchIndex !== -1) {
-                    const fullSentence = newBuffer.slice(0, lastMatchIndex).trim()
-                    const remainder = newBuffer.slice(lastMatchIndex)
-                    const clean = cleanMarkdown(fullSentence)
-                    if (clean) {
-                        get().speak(
-                            clean,
-                            () => {},
-                            () =>
-                                set({
-                                    pauseLive: true,
-                                    activeChatIndex: undefined,
-                                    buffer: '',
-                                })
-                        )
-                    }
-                    set({ buffer: remainder })
-                } else {
-                    set({ buffer: newBuffer })
-                }
-            },
-        }),
-        {
-            name: Storage.TTS,
-            storage: createJSONStorage(() => mmkvStorage),
-            version: 1,
-            partialize: (state) => ({
-                enabled: state.enabled,
-                auto: state.auto,
-                voice: state.voice,
-                rate: state.rate,
-                liveTTS: state.liveTTS,
-            }),
+  persist(
+    (set, get) => {
+      // Helper to clear active chat index if matches current speaking index
+      const clearActiveIndex = (index: number, exitCallback: () => void) => {
+        if (get().activeChatIndex === index) {
+          set({ activeChatIndex: undefined })
+          exitCallback()
         }
-    )
+      }
+
+      // Helper to clean markdown for spoken text
+      const cleanMarkdown = (text: string): string =>
+        text.replace(/([*_]{1,2}|`|\[\^.*?\]\(.*?\)|<\/?[^>]+>)/g, '')
+
+      return {
+        voice: undefined,
+        enabled: false,
+        auto: false,
+        liveTTS: false,
+        rate: 1,
+        activeChatIndex: undefined,
+        pauseLive: false,
+        buffer: '',
+
+        startTTS: async (text, index, exitCallback = () => {}) => {
+          const currentSpeaker = get().voice
+          if (!currentSpeaker) {
+            Logger.errorToast(`TTS Error: No speaker voice chosen.`)
+            clearActiveIndex(index, exitCallback)
+            return
+          }
+
+          if (await Speech.isSpeakingAsync()) {
+            await Speech.stop()
+          }
+
+          // Split text into chunks preserving punctuation with regex
+          // Keep split delimiters to append to chunks (e.g., end punctuation)
+          const splitCharsRegex = /([.!?,"*])/g
+
+          const rawChunks = text.split(splitCharsRegex)
+          const processedChunks: string[] = []
+
+          rawChunks.forEach((item) => {
+            if (!item.trim()) return
+            if (splitCharsRegex.test(item) && processedChunks.length > 0) {
+              processedChunks[processedChunks.length - 1] += item
+            } else {
+              processedChunks.push(item)
+            }
+          })
+
+          // Clean and filter empty chunks
+          const cleanedChunks = processedChunks
+            .map((chunk) => cleanMarkdown(chunk).trim())
+            .filter(Boolean)
+
+          if (!cleanedChunks.length) {
+            Logger.warn('TTS: No speakable content after cleaning and chunking.')
+            clearActiveIndex(index, exitCallback)
+            return
+          }
+
+          Logger.debug(`TTS: Prepared ${cleanedChunks.length} chunks for speaking.`)
+          set({ activeChatIndex: index })
+
+          // Sequentially speak chunks, avoiding overlap and race conditions
+          for (let i = 0; i < cleanedChunks.length; i++) {
+            const chunk = cleanedChunks[i]
+            await new Promise<void>((resolve) => {
+              Speech.speak(chunk, {
+                language: currentSpeaker.language,
+                voice: currentSpeaker.identifier,
+                rate: get().rate,
+                onDone: () => {
+                  if (i === cleanedChunks.length - 1) {
+                    clearActiveIndex(index, exitCallback)
+                  }
+                  resolve()
+                },
+                onStopped: () => {
+                  clearActiveIndex(index, exitCallback)
+                  resolve()
+                },
+              })
+            })
+          }
+        },
+
+        stopTTS: async () => {
+          Logger.info('TTS: Stopping playback.')
+          set({ activeChatIndex: undefined })
+          await Speech.stop()
+        },
+
+        setEnabled: (b) => set({ enabled: b }),
+        setAuto: (b) => set({ auto: b }),
+        setVoice: (v) => set({ voice: v }),
+        setRate: (r) => set({ rate: r }),
+        setLiveTTS: (b) => set({ liveTTS: b }),
+        setPauseLive: (b) => set({ pauseLive: b }),
+
+        speak: (text, onDone = () => {}, onStop = () => {}) => {
+          const currentSpeaker = get().voice
+          if (!currentSpeaker) {
+            Logger.error(`TTS: Attempted to speak without a selected voice.`)
+            return
+          }
+          Speech.speak(text, {
+            language: currentSpeaker.language,
+            voice: currentSpeaker.identifier,
+            onDone,
+            onStopped: onStop,
+            rate: get().rate,
+          })
+        },
+
+        handleEndGeneration: async (lastIndex, text) => {
+          if (get().activeChatIndex !== undefined) return
+
+          if (get().liveTTS) {
+            get().clearAndRunBuffer(lastIndex)
+          } else if (get().enabled && get().auto) {
+            await get().stopTTS()
+            get().startTTS(text, lastIndex)
+          }
+        },
+
+        handleStartGeneration: (lastIndex) => {
+          if (get().liveTTS) {
+            Speech.stop()
+            set({ activeChatIndex: lastIndex })
+            get().clearBuffer()
+          }
+          set({ pauseLive: false })
+        },
+
+        clearAndRunBuffer: (lastIndex) => {
+          const buffer = get().buffer.trim()
+
+          if (!get().pauseLive && buffer.length) {
+            const clean = cleanMarkdown(buffer)
+            if (clean.length) {
+              set({ activeChatIndex: lastIndex })
+              get().speak(clean, () => set({ activeChatIndex: undefined }))
+            } else {
+              set({ activeChatIndex: undefined })
+            }
+          } else {
+            set({ activeChatIndex: undefined })
+          }
+
+          set({ buffer: '' })
+        },
+
+        clearBuffer: () => set({ buffer: '' }),
+
+        insertBuffer: debounce((text: string) => {
+          if (!get().liveTTS || get().pauseLive) return
+
+          const newBuffer = get().buffer + text
+
+          sentenceEndRegex.lastIndex = 0 // Reset regex state
+          let lastMatchIndex = -1
+          let match: RegExpExecArray | null
+          while ((match = sentenceEndRegex.exec(newBuffer)) !== null) {
+            lastMatchIndex = sentenceEndRegex.lastIndex
+          }
+
+          if (lastMatchIndex !== -1) {
+            const fullSentence = newBuffer.slice(0, lastMatchIndex).trim()
+            const remainder = newBuffer.slice(lastMatchIndex)
+            const clean = cleanMarkdown(fullSentence)
+
+            if (clean.length) {
+              get().speak(
+                clean,
+                () => {},
+                () => set({ pauseLive: true, activeChatIndex: undefined, buffer: '' })
+              )
+            }
+            set({ buffer: remainder })
+          } else {
+            set({ buffer: newBuffer })
+          }
+        }, 100),
+      }
+    },
+    {
+      name: Storage.TTS,
+      storage: createJSONStorage(() => mmkvStorage),
+      version: 1,
+      partialize: (state) => ({
+        enabled: state.enabled,
+        auto: state.auto,
+        voice: state.voice,
+        rate: state.rate,
+        liveTTS: state.liveTTS,
+      }),
+    }
+  )
 )
 
-const cleanMarkdown = (text: string): string => {
-    const result = text.replace(/([*_]{1,2}|`|\[\^.*?\]\(.*?\)|<\/?[^>]+>)/g, '')
-    return result
+// Manage inference subscription safely (avoid multiple subscriptions on hot reload)
+let subscriptionCleanup: (() => void) | null = null
+export function subscribeInferenceToTTS() {
+  if (subscriptionCleanup) return // already subscribed
+
+  subscriptionCleanup = useInference.subscribe(({ nowGenerating }) => {
+    const data = Chats.useChatState.getState().data
+    if (!data?.messages?.length) return
+
+    const lastIndex = data.messages.length - 1
+    if (!nowGenerating) {
+      const message = data.messages[lastIndex]
+      if (!message?.swipes?.[message.swipe_id]) {
+        Logger.warn('TTS: No message content found at end of generation.')
+        return
+      }
+      useTTSState.getState().handleEndGeneration(
+        lastIndex,
+        message.swipes[message.swipe_id]!.swipe
+      )
+    } else {
+      useTTSState.getState().handleStartGeneration(lastIndex)
+    }
+  })
+}
+
+// Call this on app/component unmount if needed
+export function unsubscribeInferenceFromTTS() {
+  if (subscriptionCleanup) {
+    subscriptionCleanup()
+    subscriptionCleanup = null
+  }
+}
+
+/**
+ * Hook for components to consume TTS store state/actions efficiently.
+ */
+export const useTTS = () => {
+  return useTTSState((state) => ({
+    startTTS: state.startTTS,
+    stopTTS: state.stopTTS,
+    activeChatIndex: state.activeChatIndex,
+    setVoice: state.setVoice,
+    setEnabled: state.setEnabled,
+    setAuto: state.setAuto,
+    setRate: state.setRate,
+    auto: state.auto,
+    enabled: state.enabled,
+    voice: state.voice,
+    rate: state.rate,
+    live: state.liveTTS,
+    setLive: state.setLiveTTS,
+  }))
 }
